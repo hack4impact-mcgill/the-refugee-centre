@@ -1,0 +1,10 @@
+# Vendored agent skills - don't reformat third-party content
+.agents/
+
+# Build output
+.next/
+out/
+build/
+
+# Lockfiles
+package-lock.json
