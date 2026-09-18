@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col bg-sandstone-100 text-navy-900">
+    <div className="flex flex-1 flex-col">
       <header className="border-b border-sandstone-300 bg-white">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
           <Image

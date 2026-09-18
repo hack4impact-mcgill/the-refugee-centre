@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 /* Color scheme from the Figma design system (Design System > Color Scheme).
    Tailwind's default palettes for the accent families are cleared so only the
    brand shades are available (e.g. bg-red-700, text-navy-900). */
@@ -95,11 +90,15 @@
 
 /* Typography from the Figma design system (Design System > Typography).
    Each style sets size, line height, letter spacing and weight, e.g.
-   <h1 className="text-h1">. Apply `uppercase` alongside text-overline. */
-@theme {
+   <h1 className="text-h1">. Apply `uppercase` alongside text-overline.
+   The design system uses Museo Sans Rounded, a paid font; Nunito (loaded in
+   layout.tsx) is a free rounded stand-in. */
+@theme inline {
   --font-sans:
-    "Museo Sans Rounded", ui-rounded, ui-sans-serif, system-ui, sans-serif;
+    var(--font-nunito), ui-rounded, ui-sans-serif, system-ui, sans-serif;
+}
 
+@theme {
   --text-h1: 96px;
   --text-h1--line-height: 1.167;
   --text-h1--letter-spacing: -1.5px;
@@ -162,13 +161,8 @@
   --text-overline--font-weight: 500;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-sandstone-100);
+  color: var(--color-navy-900);
   font-family: var(--font-sans);
 }

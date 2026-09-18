@@ -18,7 +18,8 @@
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) 24
-- [Next.js](https://nextjs.org) 16.3.5
+
+The app runs on [Next.js](https://nextjs.org) 16.3.5, which `npm install` sets up, so it doesn't need to be installed separately.
 
 ### Running locally
 
@@ -47,4 +48,4 @@ npm run format        # Format all files
 npm run format:check  # Check formatting without changing files
 ```
 
-CI runs `npm run lint` and `npm run format:check` on every pull request and push to `main`. Both must pass, so run them before pushing.
+CI runs `npm run lint`, `npm run format:check` and `npm run build` (which also type-checks) on every pull request and push to `main`. All three must pass, so run them before pushing.
