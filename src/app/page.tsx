@@ -20,14 +20,16 @@ export default function Home() {
       <main className="flex-1">
         <section className="mx-auto max-w-5xl px-6 py-24">
           <p className="text-overline uppercase text-sandstone-700">
-            Volunteer portal
+            Supporting refugees since 2015
           </p>
           <h1 className="mt-2 max-w-3xl text-h3 sm:text-h2">
-            Helping newcomers build a home in Canada
+            <span lang="fr">Bienvenue</span> | Welcome
           </h1>
           <p className="mt-6 max-w-xl text-body1 text-navy-700">
-            Sign up for shifts, manage your availability and stay in touch with
-            the team, all in one place.
+            We are a leading frontline organization for newcomers, with an
+            expertise in serving refugees and refugee claimants. We have been
+            building long-lasting and creative solutions to refugee settlements
+            and integration in Tiohtià:ke/Montréal for 10 years.
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <a
