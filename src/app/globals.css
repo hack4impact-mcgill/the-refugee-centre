@@ -5,10 +5,166 @@
   --foreground: #171717;
 }
 
+/* Color scheme from the Figma design system (Design System > Color Scheme).
+   Tailwind's default palettes for the accent families are cleared so only the
+   brand shades are available (e.g. bg-red-700, text-navy-900). */
+@theme {
+  --color-purple-*: initial;
+  --color-green-*: initial;
+  --color-yellow-*: initial;
+  --color-orange-*: initial;
+  --color-red-*: initial;
+
+  /* Sandstone (Primary) */
+  --color-sandstone-100: #fbfaf9;
+  --color-sandstone-200: #f3f2ee;
+  --color-sandstone-300: #ebe7dd;
+  --color-sandstone-400: #dad5ca;
+  --color-sandstone-500: #c0b8a5;
+  --color-sandstone-600: #a79d85;
+  --color-sandstone-700: #817761;
+  --color-sandstone-800: #605742;
+  --color-sandstone-900: #221e16;
+
+  /* Navy (Secondary) */
+  --color-navy-100: #f9fafb;
+  --color-navy-200: #eef1f3;
+  --color-navy-300: #dde6eb;
+  --color-navy-400: #cad4da;
+  --color-navy-500: #a5b6c0;
+  --color-navy-600: #859aa7;
+  --color-navy-700: #617581;
+  --color-navy-800: #425560;
+  --color-navy-900: #163445;
+
+  /* Accent: Purple */
+  --color-purple-100: #fcf7ff;
+  --color-purple-200: #f6ebfb;
+  --color-purple-300: #e8d7f0;
+  --color-purple-400: #d9bee6;
+  --color-purple-500: #ba9bc9;
+  --color-purple-600: #a57fb7;
+  --color-purple-700: #9469a9;
+  --color-purple-800: #794c8e;
+  --color-purple-900: #4c245f;
+
+  /* Accent: Green */
+  --color-green-100: #f3f8e9;
+  --color-green-200: #e2ead1;
+  --color-green-300: #cee3a1;
+  --color-green-400: #b2d074;
+  --color-green-500: #93b943;
+  --color-green-600: #7a9f2b;
+  --color-green-700: #5b7b18;
+  --color-green-800: #3c510f;
+  --color-green-900: #2d4103;
+
+  /* Accent: Yellow */
+  --color-yellow-100: #fbf5e5;
+  --color-yellow-200: #fbeac4;
+  --color-yellow-300: #f6d995;
+  --color-yellow-400: #e9c778;
+  --color-yellow-500: #e3b957;
+  --color-yellow-600: #d7b056;
+  --color-yellow-700: #c59d40;
+  --color-yellow-800: #a68028;
+  --color-yellow-900: #5f460c;
+
+  /* Accent: Orange */
+  --color-orange-100: #fcf2e8;
+  --color-orange-200: #ffe0c1;
+  --color-orange-300: #fdcc99;
+  --color-orange-400: #f6ba7d;
+  --color-orange-500: #e5a868;
+  --color-orange-600: #d49554;
+  --color-orange-700: #ac7134;
+  --color-orange-800: #885118;
+  --color-orange-900: #4e2a05;
+
+  /* Accent: Red */
+  --color-red-100: #fff2ef;
+  --color-red-200: #ffe6e0;
+  --color-red-300: #f7d3cb;
+  --color-red-400: #f2b9ac;
+  --color-red-500: #f0a18f;
+  --color-red-600: #e27d66;
+  --color-red-700: #c45036;
+  --color-red-800: #98311a;
+  --color-red-900: #6e1a08;
+}
+
+/* Typography from the Figma design system (Design System > Typography).
+   Each style sets size, line height, letter spacing and weight, e.g.
+   <h1 className="text-h1">. Apply `uppercase` alongside text-overline. */
+@theme {
+  --font-sans:
+    "Museo Sans Rounded", ui-rounded, ui-sans-serif, system-ui, sans-serif;
+
+  --text-h1: 96px;
+  --text-h1--line-height: 1.167;
+  --text-h1--letter-spacing: -1.5px;
+  --text-h1--font-weight: 300;
+
+  --text-h2: 60px;
+  --text-h2--line-height: 1.167;
+  --text-h2--letter-spacing: -1.5px;
+  --text-h2--font-weight: 300;
+
+  --text-h3: 48px;
+  --text-h3--line-height: 1.167;
+  --text-h3--letter-spacing: -1.5px;
+  --text-h3--font-weight: 700;
+
+  --text-h4: 34px;
+  --text-h4--line-height: 1.167;
+  --text-h4--font-weight: 700;
+
+  --text-h5: 24px;
+  --text-h5--line-height: 1.167;
+  --text-h5--font-weight: 700;
+
+  --text-h6: 20px;
+  --text-h6--line-height: 1;
+  --text-h6--letter-spacing: -0.2px;
+  --text-h6--font-weight: 700;
+
+  --text-subtitle1: 16px;
+  --text-subtitle1--line-height: 1.167;
+  --text-subtitle1--font-weight: 500;
+
+  --text-subtitle2: 14px;
+  --text-subtitle2--line-height: 1.57;
+  --text-subtitle2--letter-spacing: 0.1px;
+  --text-subtitle2--font-weight: 700;
+
+  --text-label: 16px;
+  --text-label--line-height: normal;
+  --text-label--font-weight: 700;
+
+  --text-body1: 16px;
+  --text-body1--line-height: 18px;
+  --text-body1--letter-spacing: -0.096px;
+  --text-body1--font-weight: 500;
+
+  --text-body2: 14px;
+  --text-body2--line-height: 18px;
+  --text-body2--letter-spacing: -0.084px;
+  --text-body2--font-weight: 500;
+
+  --text-caption: 12px;
+  --text-caption--line-height: 1.66;
+  --text-caption--letter-spacing: 0.4px;
+  --text-caption--font-weight: 500;
+
+  --text-overline: 12px;
+  --text-overline--line-height: 2.66;
+  --text-overline--letter-spacing: 1px;
+  --text-overline--font-weight: 500;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -22,5 +178,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
