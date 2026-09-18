@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Refugee Centre
+
+## Tech Stack
+
+| Layer              | Choice                                                                  | Why                                                                                                 |
+|--------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| Frontend + Backend | Next.js (App Router) + TypeScript                                       | One codebase for the staff dashboard and the API, easiest for a small rotating team to onboard onto |
+| Database           | PostgreSQL via Supabase                                                 | Free tier covers this scale (50 volunteers, one center) with room to grow                           |
+| ORM                | Prisma                                                                  | Typed schema doubles as living documentation of volunteers, positions, and shifts                   |
+| Auth               | Clerk or Supabase Auth                                                  | Staff-only login with role scoping per position, no custom auth to maintain                         |
+| Notifications      | Email                                                                   |                                                                                                     |
+| Calendar           | Undecided (generated `.ics` attachment vs. Google Calendar integration) |                                                                                                     |
+| Scheduling jobs    | Vercel Cron, or Inngest/Trigger.dev for retry logic                     | Drives the weekly shift generation and the accept/reject waterfall                                  |
+| Hosting            | Vercel (app) + Supabase (database)                                      | Free at this scale, matters since TRC has no budget to take over hosting after handoff              |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- [Node.js](https://nodejs.org) 24
+- [Next.js](https://nextjs.org) 16.3.5
+
+### Running locally
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Linting and formatting
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The project uses [ESLint](https://eslint.org) for linting and [Prettier](https://prettier.io) for formatting.
 
-## Learn More
+```bash
+npm run lint          # Check for lint errors
+npm run lint:fix      # Fix lint errors where possible
+npm run format        # Format all files
+npm run format:check  # Check formatting without changing files
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+CI runs `npm run lint` and `npm run format:check` on every pull request and push to `main`. Both must pass, so run them before pushing.
