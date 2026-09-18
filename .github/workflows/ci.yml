@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -29,7 +29,6 @@ jobs:
 
       - name: Lint
         run: npm run lint
-
 
       - name: Check formatting
         if: ${{ !cancelled() }} # Runs even if linting failed, so a PR shows every problem at once instead of one per push.
