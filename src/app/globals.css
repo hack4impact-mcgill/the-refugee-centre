@@ -2,8 +2,10 @@
 
 /* Color scheme from the Figma design system (Design System > Color Scheme).
    Tailwind's default palettes for the accent families are cleared so only the
-   brand shades are available (e.g. bg-red-700, text-navy-900). */
-@theme {
+   brand shades are available (e.g. bg-red-700, text-navy-900). `static` emits
+   every colour as a CSS variable, even ones no class uses, so plain CSS (e.g.
+   shifts/calendar-palette.css) can reference them with var(). */
+@theme static {
   --color-purple-*: initial;
   --color-green-*: initial;
   --color-yellow-*: initial;
@@ -86,6 +88,10 @@
   --color-red-700: #c45036;
   --color-red-800: #98311a;
   --color-red-900: #6e1a08;
+
+  /* Status (used by the shift counts on the Schedule page) */
+  --color-danger: #e84545;
+  --color-success: #67b95b;
 }
 
 /* Typography from the Figma design system (Design System > Typography).

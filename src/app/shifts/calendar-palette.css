@@ -1,0 +1,50 @@
+/* FullCalendar's classic theme, recoloured with the design system tokens from
+   globals.css. Used instead of the theme's own palette.css. */
+:root {
+  /* buttons */
+  --fc-classic-button: var(--color-navy-900);
+  --fc-classic-button-border: var(--color-navy-900);
+  --fc-classic-button-strong: var(--color-navy-800);
+  --fc-classic-button-strong-border: var(--color-navy-800);
+  --fc-classic-button-outline: color-mix(
+    in srgb,
+    var(--color-navy-700) 50%,
+    transparent
+  );
+  --fc-classic-button-foreground: var(--color-sandstone-200);
+
+  /* primary */
+  --fc-classic-primary: var(--color-navy-700);
+  --fc-classic-primary-foreground: var(--color-sandstone-200);
+
+  /* calendar content */
+  --fc-classic-event: var(--color-navy-400);
+  --fc-classic-event-contrast: var(--color-navy-900);
+  --fc-classic-background-event: var(--color-green-500);
+  --fc-classic-background-event-opacity: 15%;
+  --fc-classic-background-event-foreground-opacity: 50%;
+  --fc-classic-highlight: color-mix(
+    in srgb,
+    var(--color-navy-300) 60%,
+    transparent
+  );
+  --fc-classic-today: var(--color-navy-200);
+  --fc-classic-now: var(--color-red-700);
+  --fc-classic-small-dot-width: 8px;
+  --fc-classic-large-dot-width: 10px;
+
+  /* neutral backgrounds */
+  --fc-classic-background: #ffffff;
+  --fc-classic-faint: var(--color-sandstone-100);
+  --fc-classic-muted: var(--color-sandstone-200);
+  --fc-classic-strong: var(--color-sandstone-300);
+
+  /* neutral foregrounds */
+  --fc-classic-foreground: var(--color-navy-900);
+  --fc-classic-faint-foreground: var(--color-sandstone-600);
+  --fc-classic-muted-foreground: var(--color-sandstone-700);
+
+  /* neutral borders */
+  --fc-classic-border: var(--color-sandstone-300);
+  --fc-classic-strong-border: var(--color-sandstone-500);
+}
