@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
+import Sidebar from "@/components/sidebar";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -15,7 +16,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${nunito.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full">
+        <Sidebar />
+        <main className="min-w-0 flex-1">{children}</main>
+      </body>
     </html>
   );
 }
