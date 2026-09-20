@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   useCalendarController,
   type DateSelectInfo,
-  type EventChangeInfo,
+  type EventDropInfo,
   type EventInput,
+  type EventResizeDoneInfo,
 } from "@fullcalendar/react";
 import classicThemePlugin from "@fullcalendar/react/themes/classic";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
@@ -19,6 +20,12 @@ import {
   BsSearch,
 } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
+
+import ShiftPopup, {
+  shiftEventClass,
+  type AnchorRect,
+  type ShiftDraft,
+} from "./shift-popup";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
@@ -44,40 +51,105 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
 
 // View docs for FullCalendar callback functions: https://fullcalendar.io/docs/event-dragging-resizing
 
+function anchorFromPointer(event: MouseEvent | null): AnchorRect {
+  if (!event) {
+    return {
+      top: window.innerHeight / 2,
+      left: window.innerWidth / 2,
+      width: 0,
+      height: 0,
+    };
+  }
+  return { top: event.clientY, left: event.clientX, width: 0, height: 0 };
+}
+
 export default function Schedule() {
   const calendar = useCalendarController();
   const [shifts, setShifts] = useState<EventInput[]>([]);
+  // The pending shift: drawn or moved on the calendar, but not committed to
+  // `shifts` until the popup is saved.
+  const [draft, setDraft] = useState<ShiftDraft | null>(null);
 
-  // Click-and-drag on empty space creates a shift for that time range.
-  function handleSelect(info: DateSelectInfo) {
-    setShifts((current) => [
-      ...current,
+  // A brand new shift has no event on the calendar yet, so render it from the
+  // draft. While an existing shift is being edited this returns `shifts`
+  // untouched, which keeps FullCalendar's own drag preview in place.
+  const events = useMemo<EventInput[]>(() => {
+    if (!draft?.isNew) return shifts;
+    return [
+      ...shifts,
       {
-        id: crypto.randomUUID(),
-        title: "New shift",
-        start: info.start,
-        end: info.end,
-        allDay: info.allDay,
+        id: draft.id,
+        title: draft.title,
+        start: draft.start,
+        end: draft.end,
+        allDay: draft.allDay,
+        className: shiftEventClass(draft.id),
       },
-    ]);
+    ];
+  }, [shifts, draft]);
+
+  // Click-and-drag on empty space drafts a shift for that time range.
+  function handleSelect(info: DateSelectInfo) {
+    setDraft({
+      id: crypto.randomUUID(),
+      title: "New shift",
+      start: info.start,
+      end: info.end,
+      allDay: info.allDay,
+      isNew: true,
+      revert: null,
+      anchor: anchorFromPointer(info.jsEvent),
+    });
     info.view.calendar.unselect();
   }
 
-  // Dragging or resizing a shift reports its new times; store them so the
-  // calendar re-renders from our state.
-  function handleShiftChange({ event }: EventChangeInfo) {
+  // Dragging or resizing a shift reports its new times. Hold them in the draft
+  // and keep FullCalendar's `revert` around so discarding puts the shift back.
+  function handleShiftChange(info: EventDropInfo | EventResizeDoneInfo) {
+    const { event } = info;
+    const start = event.start ?? new Date();
+
+    setDraft((current) => ({
+      id: event.id,
+      title: event.title,
+      start,
+      end: event.end ?? start,
+      allDay: event.allDay,
+      isNew: false,
+      // Dragging the same shift twice before saving: the first revert undoes
+      // the whole thing, later ones only undo the last move.
+      revert:
+        current && !current.isNew && current.id === event.id
+          ? current.revert
+          : info.revert,
+      anchor: anchorFromPointer(info.jsEvent),
+    }));
+  }
+
+  const discardDraft = useCallback(() => {
+    draft?.revert?.();
+    setDraft(null);
+  }, [draft]);
+
+  function saveDraft() {
+    if (!draft) return;
+    const saved: EventInput = {
+      id: draft.id,
+      title: draft.title.trim() || "Untitled shift",
+      start: draft.start,
+      end: draft.end,
+      allDay: draft.allDay,
+      className: shiftEventClass(draft.id),
+    };
+
     setShifts((current) =>
-      current.map((shift) =>
-        shift.id === event.id
-          ? {
-              ...shift,
-              start: event.start ?? undefined,
-              end: event.end ?? undefined,
-              allDay: event.allDay,
-            }
-          : shift,
-      ),
+      draft.isNew
+        ? [...current, saved]
+        : current.map((shift) =>
+            shift.id === draft.id ? { ...shift, ...saved } : shift,
+          ),
     );
+    setDraft(null);
   }
 
   return (
@@ -197,7 +269,7 @@ export default function Schedule() {
                   expandRows: true,
                 },
               }}
-              events={shifts}
+              events={events}
               editable
               selectable
               selectMirror
@@ -208,6 +280,18 @@ export default function Schedule() {
           </div>
         </div>
       </div>
+
+      {draft && (
+        <ShiftPopup
+          key={draft.id}
+          draft={draft}
+          onTitleChange={(title) =>
+            setDraft((current) => (current ? { ...current, title } : current))
+          }
+          onSave={saveDraft}
+          onDiscard={discardDraft}
+        />
+      )}
     </>
   );
 }
