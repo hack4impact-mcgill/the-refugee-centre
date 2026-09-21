@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import {
   useCalendarController,
   type DateSelectInfo,
+  type EventClickInfo,
   type EventDropInfo,
   type EventInput,
   type EventResizeDoneInfo,
@@ -22,8 +23,10 @@ import {
 import { FaPaperPlane } from "react-icons/fa";
 
 import ShiftPopup, {
+  EMPTY_SHIFT_DETAILS,
   shiftEventClass,
   type AnchorRect,
+  type ShiftDetails,
   type ShiftDraft,
 } from "./shift-popup";
 
@@ -63,6 +66,21 @@ function anchorFromPointer(event: MouseEvent | null): AnchorRect {
   return { top: event.clientY, left: event.clientX, width: 0, height: 0 };
 }
 
+/** Splits a draft into the calendar's own fields and the popup's extra ones. */
+function detailsOf(draft: ShiftDraft): ShiftDetails {
+  return {
+    location: draft.location,
+    address: draft.address,
+    requiredLanguages: draft.requiredLanguages,
+    preferredLanguages: draft.preferredLanguages,
+  };
+}
+
+/** Reads the popup's fields back off a saved shift, tolerating older events. */
+function detailsFromEvent(props: Record<string, unknown> | undefined) {
+  return { ...EMPTY_SHIFT_DETAILS, ...(props as Partial<ShiftDetails>) };
+}
+
 export default function Schedule() {
   const calendar = useCalendarController();
   const [shifts, setShifts] = useState<EventInput[]>([]);
@@ -84,6 +102,7 @@ export default function Schedule() {
         end: draft.end,
         allDay: draft.allDay,
         className: shiftEventClass(draft.id),
+        extendedProps: detailsOf(draft),
       },
     ];
   }, [shifts, draft]);
@@ -91,6 +110,7 @@ export default function Schedule() {
   // Click-and-drag on empty space drafts a shift for that time range.
   function handleSelect(info: DateSelectInfo) {
     setDraft({
+      ...EMPTY_SHIFT_DETAILS,
       id: crypto.randomUUID(),
       title: "New shift",
       start: info.start,
@@ -103,6 +123,25 @@ export default function Schedule() {
     info.view.calendar.unselect();
   }
 
+  // Clicking a saved shift reopens the popup on it. Nothing has moved, so
+  // there is nothing to revert when the draft is discarded.
+  function handleShiftClick(info: EventClickInfo) {
+    const { event } = info;
+    const start = event.start ?? new Date();
+
+    setDraft({
+      ...detailsFromEvent(event.extendedProps),
+      id: event.id,
+      title: event.title,
+      start,
+      end: event.end ?? start,
+      allDay: event.allDay,
+      isNew: false,
+      revert: null,
+      anchor: anchorFromPointer(info.jsEvent),
+    });
+  }
+
   // Dragging or resizing a shift reports its new times. Hold them in the draft
   // and keep FullCalendar's `revert` around so discarding puts the shift back.
   function handleShiftChange(info: EventDropInfo | EventResizeDoneInfo) {
@@ -110,6 +149,11 @@ export default function Schedule() {
     const start = event.start ?? new Date();
 
     setDraft((current) => ({
+      // Keep whatever the popup already collected for this shift; fall back to
+      // the fields stored on the saved event.
+      ...(current && current.id === event.id
+        ? detailsOf(current)
+        : detailsFromEvent(event.extendedProps)),
       id: event.id,
       title: event.title,
       start,
@@ -140,6 +184,7 @@ export default function Schedule() {
       end: draft.end,
       allDay: draft.allDay,
       className: shiftEventClass(draft.id),
+      extendedProps: detailsOf(draft),
     };
 
     setShifts((current) =>
@@ -274,6 +319,7 @@ export default function Schedule() {
               selectable
               selectMirror
               select={handleSelect}
+              eventClick={handleShiftClick}
               eventDrop={handleShiftChange}
               eventResize={handleShiftChange}
             />
@@ -285,8 +331,10 @@ export default function Schedule() {
         <ShiftPopup
           key={draft.id}
           draft={draft}
-          onTitleChange={(title) =>
-            setDraft((current) => (current ? { ...current, title } : current))
+          onChange={(patch) =>
+            setDraft((current) =>
+              current ? { ...current, ...patch } : current,
+            )
           }
           onSave={saveDraft}
           onDiscard={discardDraft}

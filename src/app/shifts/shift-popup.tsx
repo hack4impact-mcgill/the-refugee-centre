@@ -6,8 +6,9 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
-import { BsCheckLg, BsClock, BsCalendarEvent, BsX } from "react-icons/bs";
+import { BsClock, BsCalendarEvent, BsX } from "react-icons/bs";
 
 // A plain rectangle instead of a live DOMRect: the anchor is kept in state, and
 // FullCalendar recycles the elements it hands us once the drag settles.
@@ -18,7 +19,38 @@ export type AnchorRect = {
   height: number;
 };
 
-export type ShiftDraft = {
+export const SHIFT_LOCATIONS = ["TRC", "Offsite", "Remote"] as const;
+
+export const SHIFT_LANGUAGES = [
+  "English",
+  "French",
+  "Arabic",
+  "Spanish",
+  "Ukrainian",
+  "Russian",
+  "Farsi",
+  "Mandarin",
+] as const;
+
+export type ShiftLocation = (typeof SHIFT_LOCATIONS)[number];
+export type ShiftLanguage = (typeof SHIFT_LANGUAGES)[number];
+
+/** The fields the popup collects, carried on the saved shift's extendedProps. */
+export type ShiftDetails = {
+  location: ShiftLocation;
+  address: string;
+  requiredLanguages: ShiftLanguage[];
+  preferredLanguages: ShiftLanguage[];
+};
+
+export const EMPTY_SHIFT_DETAILS: ShiftDetails = {
+  location: "TRC",
+  address: "",
+  requiredLanguages: [],
+  preferredLanguages: [],
+};
+
+export type ShiftDraft = ShiftDetails & {
   id: string;
   title: string;
   start: Date;
@@ -108,16 +140,123 @@ export function formatTimeLine(draft: ShiftDraft) {
   return `${range} · ${formatDuration(draft.start, draft.end)}`;
 }
 
+const fieldClassName =
+  "flex w-full items-center justify-between gap-2 rounded-lg border border-sandstone-300 bg-white px-3 py-2";
+
+const clearButtonClassName =
+  "flex shrink-0 cursor-pointer items-center rounded-md text-sandstone-700 transition-colors hover:bg-sandstone-300";
+
+/** An overline label above a control, as in the design. */
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex w-full flex-col gap-1">
+      {htmlFor ? (
+        <label
+          className="text-overline uppercase text-navy-700"
+          htmlFor={htmlFor}
+        >
+          {label}
+        </label>
+      ) : (
+        <span className="text-overline uppercase text-navy-700">{label}</span>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** The languages already picked, each removable, plus a picker for the rest. */
+function LanguagePicker({
+  id,
+  label,
+  values,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  values: ShiftLanguage[];
+  onChange: (languages: ShiftLanguage[]) => void;
+}) {
+  const remaining = SHIFT_LANGUAGES.filter(
+    (language) => !values.includes(language),
+  );
+
+  return (
+    <Field label={label} htmlFor={id}>
+      <div className={fieldClassName}>
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          {values.map((language) => (
+            <span
+              key={language}
+              className="flex items-center gap-1 rounded-full bg-sandstone-200 py-0.5 pl-2 pr-1 text-body2"
+            >
+              {language}
+              <button
+                type="button"
+                aria-label={`Remove ${language}`}
+                onClick={() =>
+                  onChange(values.filter((current) => current !== language))
+                }
+                className="flex cursor-pointer items-center rounded-full text-sandstone-700 transition-colors hover:bg-sandstone-400"
+              >
+                <BsX aria-hidden className="size-4" />
+              </button>
+            </span>
+          ))}
+          {/* Resets to the placeholder after each pick, so it keeps reading
+              "Enter languages" however many are already listed. */}
+          <select
+            id={id}
+            value=""
+            disabled={!remaining.length}
+            onChange={(event) =>
+              onChange([...values, event.target.value as ShiftLanguage])
+            }
+            className="min-w-32 flex-1 cursor-pointer bg-transparent text-body1 text-sandstone-500 outline-none"
+          >
+            <option value="" disabled>
+              Enter languages
+            </option>
+            {remaining.map((language) => (
+              <option key={language} value={language}>
+                {language}
+              </option>
+            ))}
+          </select>
+        </div>
+        {values.length > 0 && (
+          <button
+            type="button"
+            aria-label={`Clear ${label.toLowerCase()}`}
+            onClick={() => onChange([])}
+            className={clearButtonClassName}
+          >
+            <BsX aria-hidden className="size-5.5" />
+          </button>
+        )}
+      </div>
+    </Field>
+  );
+}
+
 type ShiftPopupProps = {
   draft: ShiftDraft;
-  onTitleChange: (title: string) => void;
+  onChange: (patch: Partial<ShiftDraft>) => void;
   onSave: () => void;
   onDiscard: () => void;
 };
 
 export default function ShiftPopup({
   draft,
-  onTitleChange,
+  onChange,
   onSave,
   onDiscard,
 }: ShiftPopupProps) {
@@ -196,80 +335,125 @@ export default function ShiftPopup({
       aria-modal="false"
       aria-label={draft.isNew ? "New shift" : "Edit shift"}
       style={position}
-      className="fixed z-50 w-80 rounded-lg border border-sandstone-300 bg-white shadow-lg"
+      className="fixed z-50 flex max-h-[calc(100vh-2rem)] w-100 flex-col rounded-lg border border-sandstone-400 bg-white shadow-[-4px_4px_10px_0_rgba(0,0,0,0.05)]"
     >
       <form
+        className="flex min-h-0 flex-col"
         onSubmit={(event) => {
           event.preventDefault();
           onSave();
         }}
       >
-        <div className="flex items-start justify-between gap-2 px-4 pt-3">
-          <span className="pt-1 text-body2 text-sandstone-600">
-            {draft.isNew ? "New shift" : "Edit shift"}
-          </span>
-          <button
-            type="button"
-            aria-label="Discard changes"
-            onClick={onDiscard}
-            className="-mr-1.5 flex cursor-pointer items-center rounded-md p-1 text-navy-900 transition-colors hover:bg-sandstone-300"
-          >
-            <BsX aria-hidden className="size-5.5" />
-          </button>
-        </div>
-
-        <div className="px-4 pb-3">
+        {/* The name doubles as the popup's heading: it reads as a title and
+            edits in place, underlined by the rule from the design. */}
+        <div className="flex flex-col gap-1 px-3 pb-3 pt-6">
           <label className="sr-only" htmlFor="shift-title">
-            Shift title
+            Shift name
           </label>
           <input
             id="shift-title"
             ref={titleRef}
             value={draft.title}
-            onChange={(event) => onTitleChange(event.target.value)}
+            onChange={(event) => onChange({ title: event.target.value })}
             onFocus={(event) => {
               if (draft.isNew) event.target.select();
             }}
-            placeholder="Add a title"
-            className="w-full border-b border-transparent pb-1 text-h6 outline-none placeholder:text-sandstone-500 focus:border-navy-700"
+            placeholder="Enter shift name"
+            className="w-full text-h5 text-navy-900 outline-none placeholder:text-sandstone-500"
+          />
+          <div className="h-px w-full rounded-full bg-sandstone-800" />
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pb-3">
+          <dl className="flex flex-col gap-2 text-body2">
+            <div className="flex items-center gap-3">
+              <dt>
+                <BsCalendarEvent
+                  aria-label="Date"
+                  className="size-4 shrink-0 text-sandstone-600"
+                />
+              </dt>
+              <dd>{formatDateLine(draft)}</dd>
+            </div>
+            <div className="flex items-center gap-3">
+              <dt>
+                <BsClock
+                  aria-label="Time"
+                  className="size-4 shrink-0 text-sandstone-600"
+                />
+              </dt>
+              <dd>{formatTimeLine(draft)}</dd>
+            </div>
+          </dl>
+
+          <Field label="Location">
+            <div
+              role="group"
+              aria-label="Location"
+              className="flex overflow-clip rounded border border-sandstone-400"
+            >
+              {SHIFT_LOCATIONS.map((location) => {
+                const isActive = draft.location === location;
+                return (
+                  <button
+                    key={location}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => onChange({ location })}
+                    className={`flex-1 cursor-pointer px-2.5 py-2 text-caption leading-none transition-colors not-last:border-r not-last:border-sandstone-400 ${
+                      isActive
+                        ? "bg-sandstone-800 text-white"
+                        : "bg-white text-sandstone-900 hover:bg-sandstone-200"
+                    }`}
+                  >
+                    {location}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+
+          <div className={fieldClassName}>
+            <label className="sr-only" htmlFor="shift-address">
+              Address
+            </label>
+            <input
+              id="shift-address"
+              value={draft.address}
+              onChange={(event) => onChange({ address: event.target.value })}
+              placeholder="Enter address"
+              className="min-w-0 flex-1 text-body1 outline-none placeholder:text-sandstone-500"
+            />
+          </div>
+
+          <LanguagePicker
+            id="shift-required-languages"
+            label="Required languages"
+            values={draft.requiredLanguages}
+            onChange={(requiredLanguages) => onChange({ requiredLanguages })}
+          />
+
+          <LanguagePicker
+            id="shift-preferred-languages"
+            label="Preferred languages"
+            values={draft.preferredLanguages}
+            onChange={(preferredLanguages) => onChange({ preferredLanguages })}
           />
         </div>
 
-        <dl className="flex flex-col gap-2 px-4 pb-4 text-body2">
-          <div className="flex items-center gap-3">
-            <dt>
-              <BsCalendarEvent
-                aria-label="Date"
-                className="size-4 shrink-0 text-sandstone-600"
-              />
-            </dt>
-            <dd>{formatDateLine(draft)}</dd>
-          </div>
-          <div className="flex items-center gap-3">
-            <dt>
-              <BsClock
-                aria-label="Time"
-                className="size-4 shrink-0 text-sandstone-600"
-              />
-            </dt>
-            <dd>{formatTimeLine(draft)}</dd>
-          </div>
-        </dl>
-
-        <div className="flex justify-end gap-2 border-t border-sandstone-300 px-4 py-3">
+        <div className="flex items-center gap-2.5 p-3">
+          <button
+            type="submit"
+            className="h-9.5 flex-1 cursor-pointer rounded-lg bg-navy-900 px-3 py-2 text-body1 leading-5.5 text-white transition-colors hover:bg-navy-800"
+          >
+            {draft.isNew ? "Create shift" : "Save shift"}
+          </button>
           <button
             type="button"
             onClick={onDiscard}
-            className="cursor-pointer rounded-lg px-3 py-2 text-body1 leading-5.5 text-navy-900 transition-colors hover:bg-sandstone-300"
+            className="h-9.5 cursor-pointer rounded-lg border border-navy-900 px-3 py-2 text-body1 leading-5.5 text-navy-900 transition-colors hover:bg-sandstone-300"
           >
             Cancel
-          </button>
-          <button
-            type="submit"
-            className="flex cursor-pointer items-center gap-2 rounded-lg bg-navy-400 px-3 py-2 text-body1 leading-5.5 text-navy-900 transition-colors hover:bg-navy-500"
-          >
-            <BsCheckLg aria-hidden className="size-4" />
-            Save
           </button>
         </div>
       </form>
