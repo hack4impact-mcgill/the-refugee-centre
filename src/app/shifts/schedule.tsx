@@ -45,6 +45,14 @@ const actionButtonClassName =
 const navButtonClassName =
   "flex h-9.5 cursor-pointer items-center rounded-lg px-3 py-2 text-navy-900 transition-colors hover:bg-sandstone-300";
 
+// Highlights today's date label: the day header in week view and the day
+// number in month view. FullCalendar adds it alongside the theme's own classes.
+function todayLabelClass({ isToday }: { isToday: boolean }) {
+  return isToday
+    ? "rounded-full bg-navy-700 px-2 font-bold text-sandstone-200"
+    : "";
+}
+
 // Client components are still prerendered on the server. FullCalendar renders
 // from "today", which differs between build time and the visitor's browser, so
 // skip it on the server to avoid a hydration mismatch.
@@ -299,6 +307,8 @@ export default function Schedule() {
               headerToolbar={false}
               weekends={false}
               height="100%"
+              dayHeaderInnerClass={todayLabelClass}
+              dayCellTopInnerClass={todayLabelClass}
               views={{
                 timeGridWeek: {
                   titleFormat: {
