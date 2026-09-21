@@ -6,9 +6,11 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from "react";
-import { BsClock, BsCalendarEvent, BsX } from "react-icons/bs";
+import { BsClock, BsCalendarEvent } from "react-icons/bs";
+import Field, { fieldClassName } from "@/components/field";
+import LanguagePicker from "@/components/language-picker";
+import type { Language } from "@/lib/languages";
 
 // A plain rectangle instead of a live DOMRect: the anchor is kept in state, and
 // FullCalendar recycles the elements it hands us once the drag settles.
@@ -21,26 +23,14 @@ export type AnchorRect = {
 
 export const SHIFT_LOCATIONS = ["TRC", "Offsite", "Remote"] as const;
 
-export const SHIFT_LANGUAGES = [
-  "English",
-  "French",
-  "Arabic",
-  "Spanish",
-  "Ukrainian",
-  "Russian",
-  "Farsi",
-  "Mandarin",
-] as const;
-
 export type ShiftLocation = (typeof SHIFT_LOCATIONS)[number];
-export type ShiftLanguage = (typeof SHIFT_LANGUAGES)[number];
 
 /** The fields the popup collects, carried on the saved shift's extendedProps. */
 export type ShiftDetails = {
   location: ShiftLocation;
   address: string;
-  requiredLanguages: ShiftLanguage[];
-  preferredLanguages: ShiftLanguage[];
+  requiredLanguages: Language[];
+  preferredLanguages: Language[];
 };
 
 export const EMPTY_SHIFT_DETAILS: ShiftDetails = {
@@ -139,114 +129,6 @@ export function formatTimeLine(draft: ShiftDraft) {
   const range = `${timeFormat.format(draft.start)} – ${timeFormat.format(draft.end)}`;
   return `${range} · ${formatDuration(draft.start, draft.end)}`;
 }
-
-const fieldClassName =
-  "flex w-full items-center justify-between gap-2 rounded-lg border border-sandstone-300 bg-white px-3 py-2";
-
-const clearButtonClassName =
-  "flex shrink-0 cursor-pointer items-center rounded-md text-sandstone-700 transition-colors hover:bg-sandstone-300";
-
-/** An overline label above a control, as in the design. */
-function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  htmlFor?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex w-full flex-col gap-1">
-      {htmlFor ? (
-        <label
-          className="text-overline uppercase text-navy-700"
-          htmlFor={htmlFor}
-        >
-          {label}
-        </label>
-      ) : (
-        <span className="text-overline uppercase text-navy-700">{label}</span>
-      )}
-      {children}
-    </div>
-  );
-}
-
-/** The languages already picked, each removable, plus a picker for the rest. */
-function LanguagePicker({
-  id,
-  label,
-  values,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  values: ShiftLanguage[];
-  onChange: (languages: ShiftLanguage[]) => void;
-}) {
-  const remaining = SHIFT_LANGUAGES.filter(
-    (language) => !values.includes(language),
-  );
-
-  return (
-    <Field label={label} htmlFor={id}>
-      <div className={fieldClassName}>
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          {values.map((language) => (
-            <span
-              key={language}
-              className="flex items-center gap-1 rounded-full bg-sandstone-200 py-0.5 pl-2 pr-1 text-body2"
-            >
-              {language}
-              <button
-                type="button"
-                aria-label={`Remove ${language}`}
-                onClick={() =>
-                  onChange(values.filter((current) => current !== language))
-                }
-                className="flex cursor-pointer items-center rounded-full text-sandstone-700 transition-colors hover:bg-sandstone-400"
-              >
-                <BsX aria-hidden className="size-4" />
-              </button>
-            </span>
-          ))}
-          {/* Resets to the placeholder after each pick, so it keeps reading
-              "Enter languages" however many are already listed. */}
-          <select
-            id={id}
-            value=""
-            disabled={!remaining.length}
-            onChange={(event) =>
-              onChange([...values, event.target.value as ShiftLanguage])
-            }
-            className="min-w-32 flex-1 cursor-pointer bg-transparent text-body1 text-sandstone-500 outline-none"
-          >
-            <option value="" disabled>
-              Enter languages
-            </option>
-            {remaining.map((language) => (
-              <option key={language} value={language}>
-                {language}
-              </option>
-            ))}
-          </select>
-        </div>
-        {values.length > 0 && (
-          <button
-            type="button"
-            aria-label={`Clear ${label.toLowerCase()}`}
-            onClick={() => onChange([])}
-            className={clearButtonClassName}
-          >
-            <BsX aria-hidden className="size-5.5" />
-          </button>
-        )}
-      </div>
-    </Field>
-  );
-}
-
 type ShiftPopupProps = {
   draft: ShiftDraft;
   onChange: (patch: Partial<ShiftDraft>) => void;
