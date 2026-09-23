@@ -14,12 +14,7 @@ import classicThemePlugin from "@fullcalendar/react/themes/classic";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
-import {
-  BsChevronLeft,
-  BsChevronRight,
-  BsPlusLg,
-  BsSearch,
-} from "react-icons/bs";
+import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
 import ShiftPopup, {
@@ -267,73 +262,49 @@ export default function Schedule() {
         </div>
       </div>
 
-      <div className="flex flex-1">
-        <div className="flex w-62 shrink-0 flex-col gap-2.5 border-r border-sandstone-300 p-2.5">
-          <label className="flex h-9.5 items-center gap-3 rounded-lg border border-sandstone-300 bg-white px-3 py-2">
-            <BsSearch
-              aria-hidden
-              className="size-5 shrink-0 text-sandstone-500"
-            />
-            <span className="sr-only">Search shifts</span>
-            <input
-              type="search"
-              placeholder="Search"
-              className="min-w-0 flex-1 text-body1 outline-none placeholder:text-sandstone-500"
-            />
-          </label>
-          <button
-            type="button"
-            className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-sandstone-500 bg-sandstone-200 p-3 text-body1 leading-5.5 transition-colors hover:bg-sandstone-300"
-          >
-            <BsPlusLg aria-hidden className="size-5.5" />
-            New shift
-          </button>
-        </div>
-
-        {/* The absolute wrapper gives the calendar a fixed size (the space
-            left below the header), so it fills the screen and scrolls inside
-            itself instead of growing the page. */}
-        <div className="relative min-w-0 flex-1">
-          <div className="absolute inset-0">
-            <FullCalendar
-              controller={calendar}
-              plugins={[
-                classicThemePlugin,
-                timeGridPlugin,
-                dayGridPlugin,
-                interactionPlugin,
-              ]}
-              initialView="timeGridWeek"
-              headerToolbar={false}
-              weekends={false}
-              height="100%"
-              dayHeaderInnerClass={todayLabelClass}
-              dayCellTopInnerClass={todayLabelClass}
-              views={{
-                timeGridWeek: {
-                  titleFormat: {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  },
-                  allDaySlot: false,
-                  slotMinTime: "08:00",
-                  slotMaxTime: "18:00",
-                  nowIndicator: true,
-                  // Stretch the time slots to fill the height.
-                  expandRows: true,
+      {/* The absolute wrapper gives the calendar a fixed size (the space
+          left below the header), so it fills the screen and scrolls inside
+          itself instead of growing the page. */}
+      <div className="relative min-w-0 flex-1">
+        <div className="absolute inset-0">
+          <FullCalendar
+            controller={calendar}
+            plugins={[
+              classicThemePlugin,
+              timeGridPlugin,
+              dayGridPlugin,
+              interactionPlugin,
+            ]}
+            initialView="timeGridWeek"
+            headerToolbar={false}
+            weekends={false}
+            height="100%"
+            dayHeaderInnerClass={todayLabelClass}
+            dayCellTopInnerClass={todayLabelClass}
+            views={{
+              timeGridWeek: {
+                titleFormat: {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
                 },
-              }}
-              events={events}
-              editable
-              selectable
-              selectMirror
-              select={handleSelect}
-              eventClick={handleShiftClick}
-              eventDrop={handleShiftChange}
-              eventResize={handleShiftChange}
-            />
-          </div>
+                allDaySlot: false,
+                slotMinTime: "08:00",
+                slotMaxTime: "18:00",
+                nowIndicator: true,
+                // Stretch the time slots to fill the height.
+                expandRows: true,
+              },
+            }}
+            events={events}
+            editable
+            selectable
+            selectMirror
+            select={handleSelect}
+            eventClick={handleShiftClick}
+            eventDrop={handleShiftChange}
+            eventResize={handleShiftChange}
+          />
         </div>
       </div>
 
