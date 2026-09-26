@@ -37,6 +37,29 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to see the app.
 
+### Database
+
+The app reads and writes the Supabase database through [Prisma](https://www.prisma.io). `prisma/schema.prisma` is the source of truth for the tables, and `npm install` generates the typed client into `src/generated/prisma`. Server code imports it from `@/lib/prisma`.
+
+Both the app and the Prisma CLI read their connection strings from `.env.local`:
+
+```bash
+# Transaction pooler (port 6543), used by the app at runtime
+POSTGRES_PRISMA_URL="postgres://postgres.<project-ref>:<password>@aws-<region>.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true"
+# Session pooler (port 5432), used by the Prisma CLI for migrations
+POSTGRES_URL_NON_POOLING="postgres://postgres.<project-ref>:<password>@aws-<region>.pooler.supabase.com:5432/postgres?sslmode=require"
+```
+
+Copy both from the Supabase dashboard's **Connect** button. On Vercel, the Supabase integration sets them automatically.
+
+To change the schema, edit `prisma/schema.prisma`, then create and apply a migration:
+
+```bash
+npx prisma migrate dev --name <what-changed>
+```
+
+Commit the new folder under `prisma/migrations`. Don't change tables from the Supabase dashboard, or Prisma will see the database as drifted from its migrations.
+
 ### Linting and formatting
 
 The project uses [ESLint](https://eslint.org) for linting and [Prettier](https://prettier.io) for formatting.
