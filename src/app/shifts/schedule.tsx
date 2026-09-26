@@ -17,13 +17,14 @@ import interactionPlugin from "@fullcalendar/react/interaction";
 import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
-import ShiftPopup, {
+import {
   EMPTY_SHIFT_DETAILS,
+  detailsFromEvent,
+  detailsOf,
   shiftEventClass,
-  type AnchorRect,
-  type ShiftDetails,
   type ShiftDraft,
-} from "./shift-popup";
+} from "@/lib/shifts";
+import ShiftPopup from "./shift-popup";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
@@ -57,38 +58,10 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
 
 // View docs for FullCalendar callback functions: https://fullcalendar.io/docs/event-dragging-resizing
 
-function anchorFromPointer(event: MouseEvent | null): AnchorRect {
-  if (!event) {
-    return {
-      top: window.innerHeight / 2,
-      left: window.innerWidth / 2,
-      width: 0,
-      height: 0,
-    };
-  }
-  return { top: event.clientY, left: event.clientX, width: 0, height: 0 };
-}
-
-/** Splits a draft into the calendar's own fields and the popup's extra ones. */
-function detailsOf(draft: ShiftDraft): ShiftDetails {
-  return {
-    location: draft.location,
-    address: draft.address,
-    requiredLanguages: draft.requiredLanguages,
-    preferredLanguages: draft.preferredLanguages,
-  };
-}
-
-/** Reads the popup's fields back off a saved shift, tolerating older events. */
-function detailsFromEvent(props: Record<string, unknown> | undefined) {
-  return { ...EMPTY_SHIFT_DETAILS, ...(props as Partial<ShiftDetails>) };
-}
-
 export default function Schedule() {
   const calendar = useCalendarController();
   const [shifts, setShifts] = useState<EventInput[]>([]);
-  // The pending shift: drawn or moved on the calendar, but not committed to
-  // `shifts` until the popup is saved.
+  // The pending shift: drawn but not committed to shifts until the popup is saved
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
 
   // A brand new shift has no event on the calendar yet, so render it from the
@@ -121,7 +94,6 @@ export default function Schedule() {
       allDay: info.allDay,
       isNew: true,
       revert: null,
-      anchor: anchorFromPointer(info.jsEvent),
     });
     info.view.calendar.unselect();
   }
@@ -141,7 +113,6 @@ export default function Schedule() {
       allDay: event.allDay,
       isNew: false,
       revert: null,
-      anchor: anchorFromPointer(info.jsEvent),
     });
   }
 
@@ -169,7 +140,6 @@ export default function Schedule() {
         current && !current.isNew && current.id === event.id
           ? current.revert
           : info.revert,
-      anchor: anchorFromPointer(info.jsEvent),
     }));
   }
 

@@ -10,125 +10,24 @@ import {
 import { BsClock, BsCalendarEvent } from "react-icons/bs";
 import Field, { fieldClassName } from "@/components/field";
 import LanguagePicker from "@/components/language-picker";
-import type { Language } from "@/lib/languages";
-
-// A plain rectangle instead of a live DOMRect: the anchor is kept in state, and
-// FullCalendar recycles the elements it hands us once the drag settles.
-export type AnchorRect = {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-};
-
-export const SHIFT_LOCATIONS = ["TRC", "Offsite", "Remote"] as const;
-
-export type ShiftLocation = (typeof SHIFT_LOCATIONS)[number];
-
-/** The fields the popup collects, carried on the saved shift's extendedProps. */
-export type ShiftDetails = {
-  location: ShiftLocation;
-  address: string;
-  requiredLanguages: Language[];
-  preferredLanguages: Language[];
-};
-
-export const EMPTY_SHIFT_DETAILS: ShiftDetails = {
-  location: "TRC",
-  address: "",
-  requiredLanguages: [],
-  preferredLanguages: [],
-};
-
-export type ShiftDraft = ShiftDetails & {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  allDay: boolean;
-  /** True while the shift only exists in the draft, i.e. drawn but not saved. */
-  isNew: boolean;
-  /** Undoes FullCalendar's drag/resize when the draft is discarded. */
-  revert: (() => void) | null;
-  anchor: AnchorRect;
-};
+import {
+  SHIFT_LOCATIONS,
+  formatDateLine,
+  formatTimeLine,
+  shiftEventClass,
+  type ShiftDraft,
+} from "@/lib/shifts";
 
 const POPUP_GAP = 8;
 
-/**
- * Tags every shift's element on the calendar so the popup can measure the one
- * it belongs to. FullCalendar's own class names are hashed, and the element it
- * hands to the drag callbacks is a mirror it has already detached.
- */
-export function shiftEventClass(id: string) {
-  return `shift-${id}`;
-}
-
-const dayFormat = new Intl.DateTimeFormat(undefined, {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-  year: "numeric",
-});
-
-const shortDayFormat = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-});
-
-const timeFormat = new Intl.DateTimeFormat(undefined, {
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+/** Keeps a popup coordinate at least POPUP_GAP inside the viewport. */
+function clampToViewport(value: number, max: number) {
+  return Math.min(
+    Math.max(POPUP_GAP, value),
+    Math.max(POPUP_GAP, max - POPUP_GAP),
   );
 }
 
-/** All-day ranges end at midnight of the day *after* the last day they cover. */
-function lastAllDayDate(end: Date) {
-  const inclusive = new Date(end);
-  inclusive.setDate(inclusive.getDate() - 1);
-  return inclusive;
-}
-
-function formatDuration(start: Date, end: Date) {
-  const totalMinutes = Math.max(
-    0,
-    Math.round((end.getTime() - start.getTime()) / 60000),
-  );
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours && minutes) return `${hours} hr ${minutes} min`;
-  if (hours) return `${hours} hr`;
-  return `${minutes} min`;
-}
-
-export function formatDateLine(draft: ShiftDraft) {
-  if (!draft.allDay) return dayFormat.format(draft.start);
-
-  const last = lastAllDayDate(draft.end);
-  if (isSameDay(draft.start, last)) return dayFormat.format(draft.start);
-  return `${shortDayFormat.format(draft.start)} – ${shortDayFormat.format(last)}`;
-}
-
-export function formatTimeLine(draft: ShiftDraft) {
-  if (draft.allDay) {
-    const days =
-      Math.round(
-        (draft.end.getTime() - draft.start.getTime()) / (24 * 60 * 60 * 1000),
-      ) || 1;
-    return `All day · ${days} ${days === 1 ? "day" : "days"}`;
-  }
-
-  const range = `${timeFormat.format(draft.start)} – ${timeFormat.format(draft.end)}`;
-  return `${range} · ${formatDuration(draft.start, draft.end)}`;
-}
 type ShiftPopupProps = {
   draft: ShiftDraft;
   onChange: (patch: Partial<ShiftDraft>) => void;
@@ -152,46 +51,47 @@ export default function ShiftPopup({
     visibility: "hidden",
   });
 
-  const { id, anchor: pointerAnchor } = draft;
+  const { id, start, end } = draft;
 
+  // Re-measures whenever the shift moves: a drag hands us new start/end dates,
+  // while typing in the fields keeps the same ones.
   useLayoutEffect(() => {
     const popup = popupRef.current;
     if (!popup) return;
 
     // Measure the shift on the calendar so the popup sits beside it rather
     // than on top of it. It is drawn by now in both cases: a new shift renders
-    // from the draft, an edited one has already moved.
+    // from the draft, an edited one has already moved. Centre on screen if not.
     const anchor =
       document
         .querySelector(`.${shiftEventClass(id)}`)
-        ?.getBoundingClientRect() ?? pointerAnchor;
+        ?.getBoundingClientRect() ??
+      new DOMRect(window.innerWidth / 2, window.innerHeight / 2);
 
     const { width, height } = popup.getBoundingClientRect();
 
     // Prefer the right of the shift, flip to the left when it doesn't fit.
-    let left = anchor.left + anchor.width + POPUP_GAP;
+    let left = anchor.right + POPUP_GAP;
     if (left + width > window.innerWidth - POPUP_GAP) {
       left = anchor.left - width - POPUP_GAP;
     }
-    left = Math.min(
-      Math.max(POPUP_GAP, left),
-      Math.max(POPUP_GAP, window.innerWidth - width - POPUP_GAP),
-    );
 
-    const top = Math.min(
-      Math.max(POPUP_GAP, anchor.top + anchor.height / 2 - height / 2),
-      Math.max(POPUP_GAP, window.innerHeight - height - POPUP_GAP),
-    );
-
-    setPosition({ top, left });
-  }, [id, pointerAnchor]);
+    setPosition({
+      left: clampToViewport(left, window.innerWidth - width),
+      top: clampToViewport(
+        anchor.top + anchor.height / 2 - height / 2,
+        window.innerHeight - height,
+      ),
+    });
+  }, [id, start, end]);
 
   // FullCalendar's drag cleanup blurs the page right after the drop, so wait a
   // frame before taking focus, otherwise the title field loses it again.
+  // No dependencies: schedule.tsx remounts the popup (key={id}) for each shift.
   useEffect(() => {
     const frame = requestAnimationFrame(() => titleRef.current?.focus());
     return () => cancelAnimationFrame(frame);
-  }, [id]);
+  }, []);
 
   // Escape or a click anywhere else discards the draft, like Google Calendar.
   useEffect(() => {
