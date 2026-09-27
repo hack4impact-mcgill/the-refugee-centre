@@ -3,7 +3,7 @@
 ## Tech Stack
 
 | Layer              | Choice                                                                  | Why                                                                                                 |
-| ------------------ |-------------------------------------------------------------------------| --------------------------------------------------------------------------------------------------- |
+| ------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | Frontend + Backend | Next.js (App Router) + TypeScript                                       | One codebase for the staff dashboard and the API, easiest for a small rotating team to onboard onto |
 | Database           | PostgreSQL via Supabase                                                 | Free tier covers this scale (50 volunteers, one center) with room to grow                           |
 | ORM                | Prisma                                                                  | Typed schema doubles as living documentation of volunteers, positions, and shifts                   |
@@ -44,6 +44,9 @@ The app reads and writes the Supabase database through [Prisma](https://www.pris
 Both the app and the Prisma CLI read their connection strings from `.env.local`:
 
 ```bash
+# There's only one Supabase database atm so local dev, `db push`, `migrate dev`, and `migrate deploy`
+# all hit the same database production will use.
+
 # Transaction pooler (port 6543), used by the app at runtime
 POSTGRES_PRISMA_URL="postgresql://postgres.kcedxfowxtmrcrrffzzh:[YOUR-PASSWORD]@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true"
 # Session pooler (port 5432), used by the Prisma CLI for migrations
@@ -71,14 +74,15 @@ The first command writes the SQL into a new folder under `prisma/migrations` and
 Useful commands:
 
 ```bash
-npx prisma generate                             # Rebuild the typed client after any schema change (npm install also does this)
-npx prisma format                               # Format schema.prisma and fill in missing relation fields (Prettier doesn't touch .prisma files)
-npx prisma studio                               # Browse and edit data in the browser; edits are saved to the real database
-npx prisma migrate status                       # List which migrations the database has applied
-npx prisma migrate dev --name <what-changed>    # Write a migration from schema.prisma and apply it
-npx prisma migrate deploy                       # Apply committed migrations the database hasn't run yet, without writing new ones
-npx prisma migrate reset                        # Drop all tables and replay every migration (WARNING: deletes all data)
-npx prisma db push                              # Sync the database to schema.prisma without a migration (WARNING: can drop columns and leaves no history)
+npx prisma generate                                         # Rebuild the typed client after any schema change (npm install also does this)
+npx prisma format                                           # Format schema.prisma and fill in missing relation fields (Prettier doesn't touch .prisma files)
+npx prisma studio                                           # Browse and edit data in the browser; edits are saved to the real database
+npx prisma migrate status                                   # List which migrations the database has applied
+npx prisma migrate dev --name <what-changed>                # Write a migration from schema.prisma and apply it
+npx prisma migrate dev --name <what-changed> --create-only  # Write the migration without applying it, so the SQL can be edited first
+npx prisma migrate deploy                                   # Apply committed migrations the database hasn't run yet, without writing new ones
+npx prisma migrate reset                                    # Drop all tables and replay every migration (WARNING: deletes all data)
+npx prisma db push                                          # Sync the database to schema.prisma without a migration (WARNING: can drop columns and leaves no history)
 ```
 
 ### Linting and formatting
