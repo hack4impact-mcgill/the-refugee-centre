@@ -7,7 +7,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { BsClock, BsCalendarEvent } from "react-icons/bs";
+import { BsClock, BsCalendarEvent, BsTrash } from "react-icons/bs";
 import Field, { fieldClassName } from "@/components/field";
 import LanguagePicker from "@/components/language-picker";
 import { ShiftLocation } from "@/generated/prisma/enums";
@@ -30,15 +30,19 @@ function clampToViewport(value: number, max: number) {
 
 type ShiftPopupProps = {
   draft: ShiftDraft;
+  pending: "save" | "delete" | null;
   onChange: (patch: Partial<ShiftDraft>) => void;
   onSave: () => void;
+  onDelete: () => void;
   onDiscard: () => void;
 };
 
 export default function ShiftPopup({
   draft,
+  pending,
   onChange,
   onSave,
+  onDelete,
   onDiscard,
 }: ShiftPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
@@ -226,9 +230,14 @@ export default function ShiftPopup({
         <div className="flex items-center gap-2.5 p-3">
           <button
             type="submit"
-            className="h-9.5 flex-1 cursor-pointer rounded-lg bg-navy-900 px-3 py-2 text-body1 leading-5.5 text-white transition-colors hover:bg-navy-800"
+            disabled={pending !== null}
+            className="h-9.5 flex-1 cursor-pointer rounded-lg bg-navy-900 px-3 py-2 text-body1 leading-5.5 text-white transition-colors hover:bg-navy-800 disabled:cursor-wait disabled:opacity-70"
           >
-            {draft.isNew ? "Create shift" : "Save shift"}
+            {pending === "save"
+              ? "Saving…"
+              : draft.isNew
+                ? "Create shift"
+                : "Save shift"}
           </button>
           <button
             type="button"
@@ -237,6 +246,20 @@ export default function ShiftPopup({
           >
             Cancel
           </button>
+          {!draft.isNew && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={pending !== null}
+              aria-label={
+                pending === "delete" ? "Deleting shift" : "Delete shift"
+              }
+              title="Delete shift"
+              className="flex h-9.5 cursor-pointer items-center rounded-lg px-2.5 text-red-700 transition-colors hover:bg-red-100 disabled:cursor-wait disabled:opacity-70"
+            >
+              <BsTrash aria-hidden className="size-5" />
+            </button>
+          )}
         </div>
       </form>
     </div>

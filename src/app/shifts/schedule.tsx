@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   useCalendarController,
   type DateSelectInfo,
+  type DatesSetInfo,
   type EventClickInfo,
   type EventDropInfo,
   type EventInput,
@@ -21,8 +22,11 @@ import {
   EMPTY_SHIFT_DETAILS,
   detailsFromEvent,
   detailsOf,
+  eventOf,
+  inputOf,
   shiftEventClass,
   type ShiftDraft,
+  type ShiftRecord,
 } from "@/lib/shifts";
 import ShiftPopup from "./shift-popup";
 
@@ -60,6 +64,34 @@ export default function Schedule() {
   const calendar = useCalendarController();
   const [shifts, setShifts] = useState<EventInput[]>([]);
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
+  const [pending, setPending] = useState<"save" | "delete" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Aborts the previous range's request when the user pages past it
+  const loadController = useRef<AbortController | null>(null);
+
+  async function loadShifts(info: DatesSetInfo) {
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+
+    const params = new URLSearchParams({
+      start: info.start.toISOString(),
+      end: info.end.toISOString(),
+    });
+    try {
+      const response = await fetch(`/api/shifts?${params}`, {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const records: ShiftRecord[] = await response.json();
+      setShifts(records.map(eventOf));
+      setError(null);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      console.error(err);
+      setError("Couldn't load shifts.");
+    }
+  }
 
   // A brand new shift has no event on the calendar yet, so render it from the
   // draft. While an existing shift is being edited this returns `shifts`
@@ -143,7 +175,7 @@ export default function Schedule() {
         // the whole thing, later ones only undo the last move.
         // Opening the popup by clicking leaves `revert` null, so fall through
         // to this move's revert in that case.
-        revert: isNew ? null : ((sameShift && current.revert) || info.revert),
+        revert: isNew ? null : (sameShift && current.revert) || info.revert,
       };
     });
   }
@@ -153,26 +185,58 @@ export default function Schedule() {
     setDraft(null);
   }, [draft]);
 
-  function saveDraft() {
-    if (!draft) return;
-    const saved: EventInput = {
-      id: draft.id,
-      title: draft.title.trim() || "Untitled shift",
-      start: draft.start,
-      end: draft.end,
-      allDay: draft.allDay,
-      className: shiftEventClass(draft.id),
-      extendedProps: detailsOf(draft),
-    };
+  async function saveDraft() {
+    if (!draft || pending) return;
+    setPending("save");
+    try {
+      const response = await fetch(
+        draft.isNew ? "/api/shifts" : `/api/shifts/${draft.id}`,
+        {
+          method: draft.isNew ? "POST" : "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(inputOf(draft)),
+        },
+      );
+      if (!response.ok) throw new Error(await response.text());
+      const saved = eventOf(await response.json());
 
-    setShifts((current) =>
-      draft.isNew
-        ? [...current, saved]
-        : current.map((shift) =>
-            shift.id === draft.id ? { ...shift, ...saved } : shift,
-          ),
-    );
-    setDraft(null);
+      // A new shift gets its id from the database, so it replaces the draft
+      // rather than matching it.
+      setShifts((current) =>
+        draft.isNew
+          ? [...current, saved]
+          : current.map((shift) => (shift.id === draft.id ? saved : shift)),
+      );
+      setDraft(null);
+      setError(null);
+    } catch (err) {
+      // Keep the popup open so nothing typed is lost; Cancel still reverts.
+      console.error(err);
+      setError("Couldn't save the shift. Try again.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function deleteDraft() {
+    if (!draft || draft.isNew || pending) return;
+    setPending("delete");
+    try {
+      const response = await fetch(`/api/shifts/${draft.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error(await response.text());
+      }
+      setShifts((current) => current.filter((shift) => shift.id !== draft.id));
+      setDraft(null);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Couldn't delete the shift. Try again.");
+    } finally {
+      setPending(null);
+    }
   }
 
   return (
@@ -226,6 +290,11 @@ export default function Schedule() {
           </div>
         </div>
         <div className="flex items-center gap-5">
+          {error && (
+            <p role="alert" className="text-body2 text-red-700">
+              {error}
+            </p>
+          )}
           <button type="button" className={actionButtonClassName}>
             <FaPaperPlane aria-hidden className="size-5.5" />
             Assign shifts
@@ -272,6 +341,7 @@ export default function Schedule() {
               },
             }}
             events={events}
+            datesSet={loadShifts}
             editable
             selectable
             selectMirror
@@ -292,7 +362,9 @@ export default function Schedule() {
               current ? { ...current, ...patch } : current,
             )
           }
+          pending={pending}
           onSave={saveDraft}
+          onDelete={deleteDraft}
           onDiscard={discardDraft}
         />
       )}

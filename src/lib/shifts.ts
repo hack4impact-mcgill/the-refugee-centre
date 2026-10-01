@@ -1,6 +1,7 @@
+import type { EventInput } from "@fullcalendar/react";
 import type { Language, ShiftLocation } from "@/generated/prisma/enums";
 
-/** The fields the popup collects, carried on the saved shift's extendedProps. */
+/** Saved in extendedProps */
 export type ShiftDetails = {
   location: ShiftLocation;
   address: string;
@@ -25,6 +26,55 @@ export type ShiftDraft = ShiftDetails & {
   revert: (() => void) | null;
 };
 
+/** The body POST /api/shifts and PATCH /api/shifts/[id] accept */
+export type ShiftInput = ShiftDetails & {
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+};
+
+/** A shift as the API returns it (dates as ISO strings) */
+export type ShiftRecord = {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  allDay: boolean;
+  location: ShiftLocation;
+  address: string | null;
+  requiredLanguages: Language[];
+  preferredLanguages: Language[];
+};
+
+export function inputOf(draft: ShiftDraft): ShiftInput {
+  return {
+    ...detailsOf(draft),
+    title: draft.title.trim() || "Untitled shift",
+    start: draft.start.toISOString(),
+    end: draft.end.toISOString(),
+    allDay: draft.allDay,
+  };
+}
+
+export function eventOf(shift: ShiftRecord): EventInput {
+  const details: ShiftDetails = {
+    location: shift.location,
+    address: shift.address ?? "",
+    requiredLanguages: shift.requiredLanguages,
+    preferredLanguages: shift.preferredLanguages,
+  };
+  return {
+    id: shift.id,
+    title: shift.title,
+    start: shift.startTime,
+    end: shift.endTime,
+    allDay: shift.allDay,
+    className: shiftEventClass(shift.id),
+    extendedProps: details,
+  };
+}
+
 export function shiftEventClass(id: string) {
   return `shift-${id}`;
 }
@@ -39,10 +89,6 @@ export function detailsOf(draft: ShiftDraft): ShiftDetails {
   };
 }
 
-/**
- * Reads the popup's fields back off a saved shift. Every saved shift carries
- * them (see `detailsOf`); FullCalendar just types `extendedProps` loosely.
- */
 export function detailsFromEvent(props: Record<string, unknown>) {
   return props as ShiftDetails;
 }
