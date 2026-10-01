@@ -4,15 +4,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
 /**
- * Supabase's connection strings ask for `sslmode=require`, which newer `pg`
- * treats as `verify-full` and then rejects Supabase's certificate chain.
- * Opting into libpq semantics makes it mean "encrypted" again, as intended.
+ * `pg` lets SSL settings in the connection string override the `ssl` option,
+ * and newer versions read `sslmode=require` as `verify-full`, which rejects
+ * Supabase's certificate chain. Dropping `sslmode` lets the explicit `ssl`
+ * option below decide.
  */
-function withLibpqSsl(connectionString: string) {
+function withoutSslMode(connectionString: string) {
   const url = new URL(connectionString);
-  if (url.searchParams.has("sslmode")) {
-    url.searchParams.set("uselibpqcompat", "true");
-  }
+  url.searchParams.delete("sslmode");
   return url.toString();
 }
 
@@ -24,7 +23,9 @@ function createPrismaClient() {
     throw new Error("POSTGRES_PRISMA_URL is not set");
   }
   const adapter = new PrismaPg({
-    connectionString: withLibpqSsl(connectionString),
+    connectionString: withoutSslMode(connectionString),
+    // Encrypt the connection without verifying Supabase's certificate chain.
+    ssl: { rejectUnauthorized: false },
   });
   return new PrismaClient({ adapter });
 }
