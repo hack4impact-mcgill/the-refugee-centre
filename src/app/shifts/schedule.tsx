@@ -41,8 +41,6 @@ const actionButtonClassName =
 const navButtonClassName =
   "flex h-9.5 cursor-pointer items-center rounded-lg px-3 py-2 text-navy-900 transition-colors hover:bg-sandstone-300";
 
-// Highlights today's date label: the day header in week view and the day
-// number in month view. FullCalendar adds it alongside the theme's own classes.
 function todayLabelClass({ isToday }: { isToday: boolean }) {
   return isToday
     ? "rounded-full bg-navy-700 px-2 font-bold text-sandstone-200"
@@ -61,7 +59,6 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
 export default function Schedule() {
   const calendar = useCalendarController();
   const [shifts, setShifts] = useState<EventInput[]>([]);
-  // The pending shift: drawn but not committed to shifts until the popup is saved
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
 
   // A brand new shift has no event on the calendar yet, so render it from the
@@ -122,25 +119,33 @@ export default function Schedule() {
     const { event } = info;
     const start = event.start ?? new Date();
 
-    setDraft((current) => ({
-      // Keep whatever the popup already collected for this shift; fall back to
-      // the fields stored on the saved event.
-      ...(current && current.id === event.id
-        ? detailsOf(current)
-        : detailsFromEvent(event.extendedProps)),
-      id: event.id,
-      title: event.title,
-      start,
-      end: event.end ?? start,
-      allDay: event.allDay,
-      isNew: false,
-      // Dragging the same shift twice before saving: the first revert undoes
-      // the whole thing, later ones only undo the last move.
-      revert:
-        current && !current.isNew && current.id === event.id
-          ? current.revert
-          : info.revert,
-    }));
+    setDraft((current) => {
+      // The draft already belongs to this shift, e.g. the popup is open on it.
+      const sameShift = current?.id === event.id;
+      // A shift that hasn't been saved yet is still new after being moved: it
+      // is only on the calendar because the draft puts it there, so there is
+      // nothing to revert to and it still has to be appended on save.
+      const isNew = sameShift && current.isNew;
+
+      return {
+        // Keep whatever the popup already collected for this shift; fall back
+        // to the fields stored on the saved event.
+        ...(sameShift
+          ? detailsOf(current)
+          : detailsFromEvent(event.extendedProps)),
+        id: event.id,
+        title: event.title,
+        start,
+        end: event.end ?? start,
+        allDay: event.allDay,
+        isNew,
+        // Dragging the same shift twice before saving: the first revert undoes
+        // the whole thing, later ones only undo the last move.
+        // Opening the popup by clicking leaves `revert` null, so fall through
+        // to this move's revert in that case.
+        revert: isNew ? null : ((sameShift && current.revert) || info.revert),
+      };
+    });
   }
 
   const discardDraft = useCallback(() => {

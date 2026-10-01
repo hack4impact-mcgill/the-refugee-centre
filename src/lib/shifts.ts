@@ -21,22 +21,15 @@ export type ShiftDraft = ShiftDetails & {
   start: Date;
   end: Date;
   allDay: boolean;
-  /** True while the shift only exists in the draft, i.e. drawn but not saved. */
   isNew: boolean;
-  /** Undoes FullCalendar's drag/resize when the draft is discarded. */
   revert: (() => void) | null;
 };
 
-/**
- * Tags every shift's element on the calendar so the popup can measure the one
- * it belongs to. FullCalendar's own class names are hashed, and the element it
- * hands to the drag callbacks is a mirror it has already detached.
- */
 export function shiftEventClass(id: string) {
   return `shift-${id}`;
 }
 
-/** Splits a draft into the calendar's own fields and the popup's extra ones. */
+/** Get draft popup extra fields (not from FullCalendar) */
 export function detailsOf(draft: ShiftDraft): ShiftDetails {
   return {
     location: draft.location,
@@ -46,9 +39,12 @@ export function detailsOf(draft: ShiftDraft): ShiftDetails {
   };
 }
 
-/** Reads the popup's fields back off a saved shift, tolerating older events. */
-export function detailsFromEvent(props: Record<string, unknown> | undefined) {
-  return { ...EMPTY_SHIFT_DETAILS, ...(props as Partial<ShiftDetails>) };
+/**
+ * Reads the popup's fields back off a saved shift. Every saved shift carries
+ * them (see `detailsOf`); FullCalendar just types `extendedProps` loosely.
+ */
+export function detailsFromEvent(props: Record<string, unknown>) {
+  return props as ShiftDetails;
 }
 
 const dayFormat = new Intl.DateTimeFormat(undefined, {

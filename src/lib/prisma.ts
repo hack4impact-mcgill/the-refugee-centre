@@ -3,12 +3,6 @@ import "server-only";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
-/**
- * `pg` lets SSL settings in the connection string override the `ssl` option,
- * and newer versions read `sslmode=require` as `verify-full`, which rejects
- * Supabase's certificate chain. Dropping `sslmode` lets the explicit `ssl`
- * option below decide.
- */
 function withoutSslMode(connectionString: string) {
   const url = new URL(connectionString);
   url.searchParams.delete("sslmode");
