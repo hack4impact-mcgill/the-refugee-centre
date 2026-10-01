@@ -10,41 +10,52 @@ datasource db {
 }
 
 model Volunteer {
-  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   name           String?
   phone          String?
-  email          String?             @unique
-  approvedShifts Int?                @default(0) @map("approved_shifts")
-  refusedShifts  Int?                @default(0) @map("refused_shifts")
-  languages      VolunteerLanguage[]
+  email          String?  @unique
+  approvedShifts Int?     @default(0) @map("approved_shifts")
+  refusedShifts  Int?     @default(0) @map("refused_shifts")
 
   @@map("volunteers")
 }
 
-model Language {
-  id         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  language   String              @unique
-  volunteers VolunteerLanguage[]
+// Mirrors LANGUAGES in src/lib/languages.ts.
+enum Language {
+  English
+  French
+  Arabic
+  Spanish
+  Ukrainian
+  Russian
+  Farsi
+  Mandarin
 
-  @@map("languages")
+  @@map("language")
 }
 
-model VolunteerLanguage {
-  volunteerId String    @map("volunteer_id") @db.Uuid
-  languageId  String    @map("language_id") @db.Uuid
-  volunteer   Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  language    Language  @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+// Mirrors SHIFT_LOCATIONS in src/lib/shifts.ts.
+enum ShiftLocation {
+  TRC
+  Offsite
+  Remote
 
-  @@id([volunteerId, languageId])
-  @@map("volunteer_languages")
+  @@map("shift_location")
 }
 
-model Position {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  name        String
-  description String?
+model Shift {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  title              String
+  startTime          DateTime      @map("start_time") @db.Timestamptz(6)
+  endTime            DateTime      @map("end_time") @db.Timestamptz(6)
+  allDay             Boolean       @default(false) @map("all_day")
+  location           ShiftLocation @default(TRC)
+  address            String?
+  requiredLanguages  Language[]    @map("required_languages")
+  preferredLanguages Language[]    @map("preferred_languages")
 
-  @@map("positions")
+  @@index([startTime])
+  @@map("shifts")
 }
