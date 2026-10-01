@@ -10,8 +10,8 @@ import {
 import { BsClock, BsCalendarEvent } from "react-icons/bs";
 import Field, { fieldClassName } from "@/components/field";
 import LanguagePicker from "@/components/language-picker";
+import { ShiftLocation } from "@/generated/prisma/enums";
 import {
-  SHIFT_LOCATIONS,
   formatDateLine,
   formatTimeLine,
   shiftEventClass,
@@ -174,7 +174,7 @@ export default function ShiftPopup({
               aria-label="Location"
               className="flex overflow-clip rounded border border-sandstone-400"
             >
-              {SHIFT_LOCATIONS.map((location) => {
+              {Object.values(ShiftLocation).map((location) => {
                 const isActive = draft.location === location;
                 return (
                   <button

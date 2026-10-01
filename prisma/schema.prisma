@@ -21,7 +21,6 @@ model Volunteer {
   @@map("volunteers")
 }
 
-// Mirrors LANGUAGES in src/lib/languages.ts.
 enum Language {
   English
   French
@@ -35,7 +34,6 @@ enum Language {
   @@map("language")
 }
 
-// Mirrors SHIFT_LOCATIONS in src/lib/shifts.ts.
 enum ShiftLocation {
   TRC
   Offsite

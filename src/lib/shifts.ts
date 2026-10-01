@@ -1,8 +1,4 @@
-import type { Language } from "@/lib/languages";
-
-export const SHIFT_LOCATIONS = ["TRC", "Offsite", "Remote"] as const;
-
-export type ShiftLocation = (typeof SHIFT_LOCATIONS)[number];
+import type { Language, ShiftLocation } from "@/generated/prisma/enums";
 
 /** The fields the popup collects, carried on the saved shift's extendedProps. */
 export type ShiftDetails = {
