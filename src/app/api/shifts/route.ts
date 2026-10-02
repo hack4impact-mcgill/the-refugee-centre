@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { shiftInputSchema, shiftRangeSchema } from "@/lib/shift-input";
+import { shiftInputSchema, shiftRangeSchema } from "@/lib/schemas/shift";
 
 /** Lists the shifts overlapping `?start=…&end=…` (ISO dates). */
 export async function GET(request: NextRequest) {

@@ -26,8 +26,8 @@ import {
   inputOf,
   shiftEventClass,
   type ShiftDraft,
-  type ShiftRecord,
 } from "@/lib/shifts";
+import type { ShiftRecord } from "@/lib/schemas/shift";
 import ShiftPopup from "./shift-popup";
 
 import "@fullcalendar/react/skeleton.css";
