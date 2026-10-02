@@ -2,16 +2,16 @@
 
 ## Tech Stack
 
-| Layer              | Choice                                                                  | Why                                                                                                 |
-| ------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Frontend + Backend | Next.js (App Router) + TypeScript                                       | One codebase for the staff dashboard and the API, easiest for a small rotating team to onboard onto |
-| Database           | PostgreSQL via Supabase                                                 | Free tier covers this scale (50 volunteers, one center) with room to grow                           |
-| ORM                | Prisma                                                                  | Typed schema doubles as living documentation of volunteers, positions, and shifts                   |
-| Auth               | Supabase Auth                                                           | Staff-only login with role scoping per position, no custom auth to maintain                         |
-| Notifications      | Email                                                                   |                                                                                                     |
-| Calendar           | Undecided (generated `.ics` attachment vs. Google Calendar integration) |                                                                                                     |
-| Scheduling jobs    | Vercel Cron                                                             | Drives the weekly shift generation and the accept/reject waterfall                                  |
-| Hosting            | Vercel (app) + Supabase (database)                                      | Free at this scale, matters since TRC has no budget to take over hosting after handoff              |
+| Layer              | Choice                             | Why                                                                                                 |
+| ------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Frontend + Backend | Next.js (App Router) + TypeScript  | One codebase for the staff dashboard and the API, easiest for a small rotating team to onboard onto |
+| Database           | PostgreSQL via Supabase            | Free tier covers this scale (50 volunteers, one center) with room to grow                           |
+| ORM                | Prisma                             | Typed schema doubles as living documentation of volunteers, positions, and shifts                   |
+| Auth               | Supabase Auth                      | Staff-only login with role scoping per position, no custom auth to maintain                         |
+| Notifications      | Email                              |                                                                                                     |
+| Calendar           | Google Calendar integration        |                                                                                                     |
+| Scheduling jobs    | Vercel Cron                        | Drives the weekly shift generation and the accept/reject waterfall                                  |
+| Hosting            | Vercel (app) + Supabase (database) | Free at this scale, matters since TRC has no budget to take over hosting after handoff              |
 
 ## Getting Started
 
