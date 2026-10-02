@@ -37,3 +37,6 @@ jobs:
       - name: Build
         if: ${{ !cancelled() }} # Also type-checks, since next build runs TypeScript.
         run: npm run build
+        env:
+          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
