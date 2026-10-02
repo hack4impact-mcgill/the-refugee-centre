@@ -1,5 +1,6 @@
 import type { EventInput } from "@fullcalendar/react";
 import type { Language, ShiftLocation } from "@/generated/prisma/enums";
+import type { ShiftInput } from "./shift-input";
 
 /** Saved in extendedProps */
 export type ShiftDetails = {
@@ -26,13 +27,7 @@ export type ShiftDraft = ShiftDetails & {
   revert: (() => void) | null;
 };
 
-/** The body POST /api/shifts and PATCH /api/shifts/[id] accept */
-export type ShiftInput = ShiftDetails & {
-  title: string;
-  start: string;
-  end: string;
-  allDay: boolean;
-};
+export type { ShiftInput };
 
 /** A shift as the API returns it (dates as ISO strings) */
 export type ShiftRecord = {

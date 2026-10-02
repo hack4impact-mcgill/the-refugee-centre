@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
+import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isUuid, parseShiftInput } from "@/lib/shift-input";
+import { shiftIdSchema, shiftInputSchema } from "@/lib/shift-input";
 
 const NOT_FOUND = { error: "Shift not found" };
 
@@ -11,12 +12,17 @@ export async function PATCH(
   ctx: RouteContext<"/api/shifts/[id]">,
 ) {
   const { id } = await ctx.params;
-  if (!isUuid(id)) return Response.json(NOT_FOUND, { status: 404 });
+  if (!shiftIdSchema.safeParse(id).success) {
+    return Response.json(NOT_FOUND, { status: 404 });
+  }
 
   const body = await request.json().catch(() => null);
-  const input = parseShiftInput(body);
-  if (!input.data) {
-    return Response.json({ error: input.error }, { status: 400 });
+  const input = shiftInputSchema.safeParse(body);
+  if (!input.success) {
+    return Response.json(
+      { error: z.prettifyError(input.error) },
+      { status: 400 },
+    );
   }
 
   try {
@@ -43,7 +49,9 @@ export async function DELETE(
   ctx: RouteContext<"/api/shifts/[id]">,
 ) {
   const { id } = await ctx.params;
-  if (!isUuid(id)) return Response.json(NOT_FOUND, { status: 404 });
+  if (!shiftIdSchema.safeParse(id).success) {
+    return Response.json(NOT_FOUND, { status: 404 });
+  }
 
   // deleteMany reports a count instead of throwing when nothing matched.
   const { count } = await prisma.shift.deleteMany({ where: { id } });
