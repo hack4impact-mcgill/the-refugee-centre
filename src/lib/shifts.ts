@@ -46,8 +46,8 @@ export function inputOf(draft: ShiftDraft): ShiftInput {
   return {
     ...detailsOf(draft),
     title: draft.title.trim() || "Untitled shift",
-    start: draft.start.toISOString(),
-    end: draft.end.toISOString(),
+    startTime: draft.start.toISOString(),
+    endTime: draft.end.toISOString(),
     allDay: draft.allDay,
   };
 }
