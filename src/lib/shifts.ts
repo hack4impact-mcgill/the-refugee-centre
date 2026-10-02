@@ -70,6 +70,7 @@ export function eventOf(shift: ShiftRecord): EventInput {
   };
 }
 
+/** Used in shift pop up to find event on the page for anchoring */
 export function shiftEventClass(id: string) {
   return `shift-${id}`;
 }
