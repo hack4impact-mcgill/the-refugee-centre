@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   useCalendarController,
   type DateSelectInfo,
+  type DatesSetInfo,
   type EventClickInfo,
   type EventDropInfo,
   type EventInput,
@@ -17,13 +18,17 @@ import interactionPlugin from "@fullcalendar/react/interaction";
 import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
-import ShiftPopup, {
+import {
   EMPTY_SHIFT_DETAILS,
+  detailsFromEvent,
+  detailsOf,
+  eventOf,
+  inputOf,
   shiftEventClass,
-  type AnchorRect,
-  type ShiftDetails,
   type ShiftDraft,
-} from "./shift-popup";
+  type ShiftRecord,
+} from "@/lib/shifts";
+import ShiftPopup from "./shift-popup";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
@@ -40,8 +45,6 @@ const actionButtonClassName =
 const navButtonClassName =
   "flex h-9.5 cursor-pointer items-center rounded-lg px-3 py-2 text-navy-900 transition-colors hover:bg-sandstone-300";
 
-// Highlights today's date label: the day header in week view and the day
-// number in month view. FullCalendar adds it alongside the theme's own classes.
 function todayLabelClass({ isToday }: { isToday: boolean }) {
   return isToday
     ? "rounded-full bg-navy-700 px-2 font-bold text-sandstone-200"
@@ -57,39 +60,38 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
 
 // View docs for FullCalendar callback functions: https://fullcalendar.io/docs/event-dragging-resizing
 
-function anchorFromPointer(event: MouseEvent | null): AnchorRect {
-  if (!event) {
-    return {
-      top: window.innerHeight / 2,
-      left: window.innerWidth / 2,
-      width: 0,
-      height: 0,
-    };
-  }
-  return { top: event.clientY, left: event.clientX, width: 0, height: 0 };
-}
-
-/** Splits a draft into the calendar's own fields and the popup's extra ones. */
-function detailsOf(draft: ShiftDraft): ShiftDetails {
-  return {
-    location: draft.location,
-    address: draft.address,
-    requiredLanguages: draft.requiredLanguages,
-    preferredLanguages: draft.preferredLanguages,
-  };
-}
-
-/** Reads the popup's fields back off a saved shift, tolerating older events. */
-function detailsFromEvent(props: Record<string, unknown> | undefined) {
-  return { ...EMPTY_SHIFT_DETAILS, ...(props as Partial<ShiftDetails>) };
-}
-
 export default function Schedule() {
   const calendar = useCalendarController();
   const [shifts, setShifts] = useState<EventInput[]>([]);
-  // The pending shift: drawn or moved on the calendar, but not committed to
-  // `shifts` until the popup is saved.
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
+  const [pending, setPending] = useState<"save" | "delete" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Aborts the previous range's request when the user pages past it
+  const loadController = useRef<AbortController | null>(null);
+
+  async function loadShifts(info: DatesSetInfo) {
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+
+    const params = new URLSearchParams({
+      start: info.start.toISOString(),
+      end: info.end.toISOString(),
+    });
+    try {
+      const response = await fetch(`/api/shifts?${params}`, {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const records: ShiftRecord[] = await response.json();
+      setShifts(records.map(eventOf));
+      setError(null);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      console.error(err);
+      setError("Couldn't load shifts.");
+    }
+  }
 
   // A brand new shift has no event on the calendar yet, so render it from the
   // draft. While an existing shift is being edited this returns `shifts`
@@ -121,7 +123,6 @@ export default function Schedule() {
       allDay: info.allDay,
       isNew: true,
       revert: null,
-      anchor: anchorFromPointer(info.jsEvent),
     });
     info.view.calendar.unselect();
   }
@@ -141,7 +142,6 @@ export default function Schedule() {
       allDay: event.allDay,
       isNew: false,
       revert: null,
-      anchor: anchorFromPointer(info.jsEvent),
     });
   }
 
@@ -151,26 +151,33 @@ export default function Schedule() {
     const { event } = info;
     const start = event.start ?? new Date();
 
-    setDraft((current) => ({
-      // Keep whatever the popup already collected for this shift; fall back to
-      // the fields stored on the saved event.
-      ...(current && current.id === event.id
-        ? detailsOf(current)
-        : detailsFromEvent(event.extendedProps)),
-      id: event.id,
-      title: event.title,
-      start,
-      end: event.end ?? start,
-      allDay: event.allDay,
-      isNew: false,
-      // Dragging the same shift twice before saving: the first revert undoes
-      // the whole thing, later ones only undo the last move.
-      revert:
-        current && !current.isNew && current.id === event.id
-          ? current.revert
-          : info.revert,
-      anchor: anchorFromPointer(info.jsEvent),
-    }));
+    setDraft((current) => {
+      // The draft already belongs to this shift, e.g. the popup is open on it.
+      const sameShift = current?.id === event.id;
+      // A shift that hasn't been saved yet is still new after being moved: it
+      // is only on the calendar because the draft puts it there, so there is
+      // nothing to revert to and it still has to be appended on save.
+      const isNew = sameShift && current.isNew;
+
+      return {
+        // Keep whatever the popup already collected for this shift; fall back
+        // to the fields stored on the saved event.
+        ...(sameShift
+          ? detailsOf(current)
+          : detailsFromEvent(event.extendedProps)),
+        id: event.id,
+        title: event.title,
+        start,
+        end: event.end ?? start,
+        allDay: event.allDay,
+        isNew,
+        // Dragging the same shift twice before saving: the first revert undoes
+        // the whole thing, later ones only undo the last move.
+        // Opening the popup by clicking leaves `revert` null, so fall through
+        // to this move's revert in that case.
+        revert: isNew ? null : (sameShift && current.revert) || info.revert,
+      };
+    });
   }
 
   const discardDraft = useCallback(() => {
@@ -178,26 +185,58 @@ export default function Schedule() {
     setDraft(null);
   }, [draft]);
 
-  function saveDraft() {
-    if (!draft) return;
-    const saved: EventInput = {
-      id: draft.id,
-      title: draft.title.trim() || "Untitled shift",
-      start: draft.start,
-      end: draft.end,
-      allDay: draft.allDay,
-      className: shiftEventClass(draft.id),
-      extendedProps: detailsOf(draft),
-    };
+  async function saveDraft() {
+    if (!draft || pending) return;
+    setPending("save");
+    try {
+      const response = await fetch(
+        draft.isNew ? "/api/shifts" : `/api/shifts/${draft.id}`,
+        {
+          method: draft.isNew ? "POST" : "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(inputOf(draft)),
+        },
+      );
+      if (!response.ok) throw new Error(await response.text());
+      const saved = eventOf(await response.json());
 
-    setShifts((current) =>
-      draft.isNew
-        ? [...current, saved]
-        : current.map((shift) =>
-            shift.id === draft.id ? { ...shift, ...saved } : shift,
-          ),
-    );
-    setDraft(null);
+      // A new shift gets its id from the database, so it replaces the draft
+      // rather than matching it.
+      setShifts((current) =>
+        draft.isNew
+          ? [...current, saved]
+          : current.map((shift) => (shift.id === draft.id ? saved : shift)),
+      );
+      setDraft(null);
+      setError(null);
+    } catch (err) {
+      // Keep the popup open so nothing typed is lost; Cancel still reverts.
+      console.error(err);
+      setError("Couldn't save the shift. Try again.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function deleteDraft() {
+    if (!draft || draft.isNew || pending) return;
+    setPending("delete");
+    try {
+      const response = await fetch(`/api/shifts/${draft.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error(await response.text());
+      }
+      setShifts((current) => current.filter((shift) => shift.id !== draft.id));
+      setDraft(null);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Couldn't delete the shift. Try again.");
+    } finally {
+      setPending(null);
+    }
   }
 
   return (
@@ -251,6 +290,11 @@ export default function Schedule() {
           </div>
         </div>
         <div className="flex items-center gap-5">
+          {error && (
+            <p role="alert" className="text-body2 text-red-700">
+              {error}
+            </p>
+          )}
           <button type="button" className={actionButtonClassName}>
             <FaPaperPlane aria-hidden className="size-5.5" />
             Assign shifts
@@ -297,6 +341,7 @@ export default function Schedule() {
               },
             }}
             events={events}
+            datesSet={loadShifts}
             editable
             selectable
             selectMirror
@@ -317,7 +362,9 @@ export default function Schedule() {
               current ? { ...current, ...patch } : current,
             )
           }
+          pending={pending}
           onSave={saveDraft}
+          onDelete={deleteDraft}
           onDiscard={discardDraft}
         />
       )}

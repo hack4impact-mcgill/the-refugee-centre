@@ -31,9 +31,12 @@ jobs:
         run: npm run lint
 
       - name: Check formatting
-        if: ${{ !cancelled() }} # Runs even if linting failed, so a PR shows every problem at once instead of one per push.
+        if: ${{ !cancelled() }}
         run: npm run format:check
 
       - name: Build
-        if: ${{ !cancelled() }} # Also type-checks, since next build runs TypeScript.
+        if: ${{ !cancelled() }}
         run: npm run build
+        env:
+          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
