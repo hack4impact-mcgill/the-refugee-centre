@@ -1,6 +1,5 @@
-import "server-only";
-
 import { z } from "zod";
+import type { Shift } from "@/generated/prisma/browser";
 import { Language, ShiftLocation } from "@/generated/prisma/enums";
 
 /** An ISO date string with a timezone (e.g. from `toISOString()`), as a Date. */
@@ -40,3 +39,9 @@ export const shiftInputSchema = z
 
 /** The request body, before parsing (dates as ISO strings). */
 export type ShiftInput = z.input<typeof shiftInputSchema>;
+
+/** JSON turns Dates into ISO strings */
+type Serialized<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] };
+
+/** A shift as the API returns it (dates as ISO strings) */
+export type ShiftRecord = Serialized<Shift>;

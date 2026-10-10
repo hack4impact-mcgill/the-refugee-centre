@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { shiftIdSchema, shiftInputSchema } from "@/lib/shift-input";
+import { shiftIdSchema, shiftInputSchema } from "@/lib/schemas/shift";
 
 const NOT_FOUND = { error: "Shift not found" };
 
