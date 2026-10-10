@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   useCalendarController,
@@ -180,10 +180,10 @@ export default function Schedule() {
     });
   }
 
-  const discardDraft = useCallback(() => {
+  function discardDraft() {
     draft?.revert?.();
     setDraft(null);
-  }, [draft]);
+  }
 
   async function saveDraft() {
     if (!draft || pending) return;
