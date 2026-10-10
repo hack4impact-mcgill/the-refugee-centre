@@ -45,6 +45,9 @@ const actionButtonClassName =
 const navButtonClassName =
   "flex h-9.5 cursor-pointer items-center rounded-lg px-3 py-2 text-navy-900 transition-colors hover:bg-sandstone-300";
 
+const todayButtonClassName =
+  "flex h-9.5 cursor-pointer items-center rounded-lg border border-sandstone-300 px-3 py-2 text-body1 text-navy-900 transition-colors hover:bg-sandstone-300";
+
 function todayLabelClass({ isToday }: { isToday: boolean }) {
   return isToday
     ? "rounded-full bg-navy-700 px-2 font-bold text-sandstone-200"
@@ -59,6 +62,7 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
 
 export default function Schedule() {
   const calendar = useCalendarController();
+  const todayButton = calendar.getButtonState().today;
   const [shifts, setShifts] = useState<EventInput[]>([]);
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
   const [pending, setPending] = useState<"save" | "delete" | null>(null);
@@ -231,9 +235,14 @@ export default function Schedule() {
     <>
       <div className="flex items-center justify-between border-b border-sandstone-300 px-8 py-4">
         <div className="flex items-center gap-2.5">
-          <h2 className="min-h-5 min-w-60 text-h6" aria-live="polite">
-            {calendar.view?.title}
-          </h2>
+          <button
+            type="button"
+            title={todayButton.hint || undefined}
+            onClick={() => calendar.today()}
+            className={todayButtonClassName}
+          >
+            Today
+          </button>
           <div className="flex items-center">
             <button
               type="button"
@@ -252,6 +261,9 @@ export default function Schedule() {
               <BsChevronRight aria-hidden className="size-5.5" />
             </button>
           </div>
+          <h2 className="min-h-5 min-w-60 text-h6" aria-live="polite">
+            {calendar.view?.title}
+          </h2>
           <div
             role="group"
             aria-label="Calendar view"
