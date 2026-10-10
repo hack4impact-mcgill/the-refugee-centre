@@ -51,9 +51,6 @@ function todayLabelClass({ isToday }: { isToday: boolean }) {
     : "";
 }
 
-// Client components are still prerendered on the server. FullCalendar renders
-// from "today", which differs between build time and the visitor's browser, so
-// skip it on the server to avoid a hydration mismatch.
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
   ssr: false,
 });
@@ -66,7 +63,6 @@ export default function Schedule() {
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
   const [pending, setPending] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Aborts the previous range's request when the user pages past it
   const loadController = useRef<AbortController | null>(null);
 
   async function loadShifts(info: DatesSetInfo) {
@@ -93,9 +89,19 @@ export default function Schedule() {
     }
   }
 
-  // A brand new shift has no event on the calendar yet, so render it from the
-  // draft. While an existing shift is being edited this returns `shifts`
-  // untouched, which keeps FullCalendar's own drag preview in place.
+  // A brand new shift isn't in `shifts` yet, so it is appended here from the
+  // draft to make it show up on the calendar.
+  //
+  // useMemo keeps the array's identity stable between renders. FullCalendar
+  // only treats `events` as unchanged when it gets the same array, or one whose
+  // items are all === to the previous ones. The appended draft event is a new
+  // object every time this runs, so without useMemo any re-render (e.g.
+  // `pending` flipping while saving) would look like an event change and make
+  // FullCalendar process every shift again. With it, the array is only rebuilt
+  // when `shifts` or `draft` actually change.
+  //
+  // When no new shift is being drafted, `shifts` is returned as is: it comes
+  // straight from state, so its identity is already stable.
   const events = useMemo<EventInput[]>(() => {
     if (!draft?.isNew) return shifts;
     return [
@@ -112,7 +118,6 @@ export default function Schedule() {
     ];
   }, [shifts, draft]);
 
-  // Click-and-drag on empty space drafts a shift for that time range.
   function handleSelect(info: DateSelectInfo) {
     setDraft({
       ...EMPTY_SHIFT_DETAILS,
@@ -127,8 +132,6 @@ export default function Schedule() {
     info.view.calendar.unselect();
   }
 
-  // Clicking a saved shift reopens the popup on it. Nothing has moved, so
-  // there is nothing to revert when the draft is discarded.
   function handleShiftClick(info: EventClickInfo) {
     const { event } = info;
     const start = event.start ?? new Date();
@@ -145,23 +148,15 @@ export default function Schedule() {
     });
   }
 
-  // Dragging or resizing a shift reports its new times. Hold them in the draft
-  // and keep FullCalendar's `revert` around so discarding puts the shift back.
   function handleShiftChange(info: EventDropInfo | EventResizeDoneInfo) {
     const { event } = info;
     const start = event.start ?? new Date();
 
     setDraft((current) => {
-      // The draft already belongs to this shift, e.g. the popup is open on it.
       const sameShift = current?.id === event.id;
-      // A shift that hasn't been saved yet is still new after being moved: it
-      // is only on the calendar because the draft puts it there, so there is
-      // nothing to revert to and it still has to be appended on save.
       const isNew = sameShift && current.isNew;
 
       return {
-        // Keep whatever the popup already collected for this shift; fall back
-        // to the fields stored on the saved event.
         ...(sameShift
           ? detailsOf(current)
           : detailsFromEvent(event.extendedProps)),
@@ -171,10 +166,6 @@ export default function Schedule() {
         end: event.end ?? start,
         allDay: event.allDay,
         isNew,
-        // Dragging the same shift twice before saving: the first revert undoes
-        // the whole thing, later ones only undo the last move.
-        // Opening the popup by clicking leaves `revert` null, so fall through
-        // to this move's revert in that case.
         revert: isNew ? null : (sameShift && current.revert) || info.revert,
       };
     });
@@ -200,8 +191,6 @@ export default function Schedule() {
       if (!response.ok) throw new Error(await response.text());
       const saved = eventOf(await response.json());
 
-      // A new shift gets its id from the database, so it replaces the draft
-      // rather than matching it.
       setShifts((current) =>
         draft.isNew
           ? [...current, saved]
@@ -210,7 +199,6 @@ export default function Schedule() {
       setDraft(null);
       setError(null);
     } catch (err) {
-      // Keep the popup open so nothing typed is lost; Cancel still reverts.
       console.error(err);
       setError("Couldn't save the shift. Try again.");
     } finally {
@@ -306,9 +294,6 @@ export default function Schedule() {
         </div>
       </div>
 
-      {/* The absolute wrapper gives the calendar a fixed size (the space
-          left below the header), so it fills the screen and scrolls inside
-          itself instead of growing the page. */}
       <div className="relative min-w-0 flex-1">
         <div className="absolute inset-0">
           <FullCalendar
@@ -336,7 +321,6 @@ export default function Schedule() {
                 slotMinTime: "08:00",
                 slotMaxTime: "18:00",
                 nowIndicator: true,
-                // Stretch the time slots to fill the height.
                 expandRows: true,
               },
             }}
