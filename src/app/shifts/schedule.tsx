@@ -318,7 +318,6 @@ export default function Schedule() {
             ]}
             initialView="timeGridWeek"
             headerToolbar={false}
-            weekends={false}
             height="100%"
             dayHeaderInnerClass={todayLabelClass}
             dayCellTopInnerClass={todayLabelClass}
