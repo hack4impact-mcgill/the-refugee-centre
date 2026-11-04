@@ -7,9 +7,7 @@ export type RankingConfig = {
   weeklyCap: number;
   overdueAfterDays: number;
   overdueBonus: number;
-  languageBonus: number;
   weekLoadWeight: number;
-  targetPerWeek: number;
   eventWeights: {
     expired: number;
     rejected: number;
@@ -18,9 +16,7 @@ export type RankingConfig = {
     withdrawn: number;
     excused: number;
   };
-  scarceLanguageMaxShare: number;
   newVolunteerOverdue: boolean;
-  trackingStartDate: Date | null;
   afternoonStartHour: number;
   eveningStartHour: number;
   tiebreakSeed: string;
@@ -35,9 +31,7 @@ export const RANKING_CONFIG: RankingConfig = {
   weeklyCap: 2,
   overdueAfterDays: 14,
   overdueBonus: 2,
-  languageBonus: 0.5,
   weekLoadWeight: 1.5,
-  targetPerWeek: 1,
   eventWeights: {
     expired: 0.5,
     rejected: 1,
@@ -46,9 +40,7 @@ export const RANKING_CONFIG: RankingConfig = {
     withdrawn: 0,
     excused: 0,
   },
-  scarceLanguageMaxShare: 0.25,
   newVolunteerOverdue: true,
-  trackingStartDate: null,
   afternoonStartHour: 12,
   eveningStartHour: 17,
   tiebreakSeed: "rc-52",

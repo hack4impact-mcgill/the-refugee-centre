@@ -1,41 +1,20 @@
 import type { RankingConfig } from "./config";
-import { isSameWeek, isWithinDates, shiftSlots } from "./time";
+import { isSameWeek, shiftSlots } from "./time";
 import type { RankingOffer, RankingShift, RankingVolunteer } from "./types";
 
 export type FilterFailure =
   | "not-approved-for-position"
   | "unavailable"
   | "missing-required-language"
-  | "not-enrolled"
-  | "paused"
   | "already-offered-this-shift"
   | "has-pending-offer"
   | "weekly-cap-reached";
 
-export function enrollmentForShift(
-  volunteer: RankingVolunteer,
-  shift: RankingShift,
-  config: RankingConfig,
-) {
-  return volunteer.enrollments.find(({ semester }) =>
-    isWithinDates(
-      shift.startTime,
-      semester.startDate,
-      semester.endDate,
-      config.timeZone,
-    ),
-  );
-}
-
-/**
- * Pass only this volunteer's offers. `semesterActive` is whether any semester
- * covers the shift; without one, enrollment isn't checked.
- */
+/** Pass only this volunteer's offers. */
 export function hardFilterFailures(
   volunteer: RankingVolunteer,
   offers: RankingOffer[],
   shift: RankingShift,
-  semesterActive: boolean,
   config: RankingConfig,
 ): FilterFailure[] {
   const failures: FilterFailure[] = [];
@@ -53,24 +32,11 @@ export function hardFilterFailures(
   if (!isAvailable) failures.push("unavailable");
 
   if (
-    shift.requiredLanguages.length > 0 &&
-    !shift.requiredLanguages.some((language) =>
+    !shift.requiredLanguages.every((language) =>
       volunteer.languages.includes(language),
     )
   ) {
     failures.push("missing-required-language");
-  }
-
-  if (semesterActive) {
-    const enrollment = enrollmentForShift(volunteer, shift, config);
-    if (!enrollment) {
-      failures.push("not-enrolled");
-    } else if (
-      enrollment.pausedUntil &&
-      shift.startTime < enrollment.pausedUntil
-    ) {
-      failures.push("paused");
-    }
   }
 
   if (offers.some((offer) => offer.shiftId === shift.id)) {

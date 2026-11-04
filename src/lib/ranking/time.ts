@@ -38,29 +38,11 @@ export function calendarDaysBetween(from: Date, to: Date, timeZone: string) {
   return toPlainDate(from, timeZone).until(toPlainDate(to, timeZone)).days;
 }
 
-export function wholeWeeksBetween(from: Date, to: Date, timeZone: string) {
-  return Math.max(0, Math.floor(calendarDaysBetween(from, to, timeZone) / 7));
-}
-
 export function isSameWeek(a: Date, b: Date, timeZone: string) {
   const monday = (date: Temporal.PlainDate) =>
     date.subtract({ days: date.dayOfWeek - 1 });
   return monday(toPlainDate(a, timeZone)).equals(
     monday(toPlainDate(b, timeZone)),
-  );
-}
-
-/** Compares local dates, including both ends. */
-export function isWithinDates(
-  date: Date,
-  start: Date,
-  end: Date,
-  timeZone: string,
-) {
-  const day = toPlainDate(date, timeZone);
-  return (
-    Temporal.PlainDate.compare(toPlainDate(start, timeZone), day) <= 0 &&
-    Temporal.PlainDate.compare(day, toPlainDate(end, timeZone)) <= 0
   );
 }
 

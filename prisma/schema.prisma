@@ -20,7 +20,6 @@ model Volunteer {
   offers       ShiftOffer[]
   positions    VolunteerPosition[]
   availability VolunteerAvailability[]
-  enrollments  SemesterEnrollment[]
 
   @@map("volunteers")
 }
@@ -167,30 +166,4 @@ model VolunteerAvailability {
 
   @@id([volunteerId, day, period])
   @@map("volunteer_availability")
-}
-
-model Semester {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  name      String   @unique
-  startDate DateTime @map("start_date") @db.Timestamptz(6)
-  endDate   DateTime @map("end_date") @db.Timestamptz(6)
-
-  enrollments SemesterEnrollment[]
-
-  @@map("semesters")
-}
-
-model SemesterEnrollment {
-  volunteerId   String    @map("volunteer_id") @db.Uuid
-  semesterId    String    @map("semester_id") @db.Uuid
-  enrolledAt    DateTime  @default(now()) @map("enrolled_at") @db.Timestamptz(6)
-  targetPerWeek Int       @default(1) @map("target_per_week")
-  pausedUntil   DateTime? @map("paused_until") @db.Timestamptz(6)
-
-  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
-  semester  Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-
-  @@id([volunteerId, semesterId])
-  @@map("semester_enrollments")
 }

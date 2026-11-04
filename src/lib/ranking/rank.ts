@@ -1,8 +1,8 @@
 import type { RankingConfig } from "./config";
-import { enrollmentForShift, hardFilterFailures } from "./filters";
+import { hardFilterFailures } from "./filters";
 import { calculatePenalty, tierForPenalty } from "./penalty";
 import { buildReason } from "./reason";
-import { calculateScore, scarceLanguages } from "./score";
+import { calculateScore } from "./score";
 import type {
   RankingOffer,
   RankingShift,
@@ -42,31 +42,20 @@ export function rankVolunteers(
   const tiebreak = (volunteerId: string) =>
     hash(`${config.tiebreakSeed}:${shift.id}:${volunteerId}`);
 
-  const semesterActive = volunteers.some((volunteer) =>
-    enrollmentForShift(volunteer, shift, config),
-  );
   const candidates = volunteers.filter(
     (volunteer) =>
-      hardFilterFailures(
-        volunteer,
-        offersOf(volunteer),
-        shift,
-        semesterActive,
-        config,
-      ).length === 0,
+      hardFilterFailures(volunteer, offersOf(volunteer), shift, config)
+        .length === 0,
   );
-  const scarce = scarceLanguages(candidates, shift, config);
 
   return candidates
     .map((volunteer) => {
       const own = offersOf(volunteer);
       const penalty = calculatePenalty(own, now, config);
       const tier = tierForPenalty(penalty, config);
-      const { score, components, lastShiftAt, scarceSpoken } = calculateScore(
-        volunteer,
+      const { score, components, lastShiftAt } = calculateScore(
         own,
         shift,
-        scarce,
         now,
         config,
       );
@@ -78,14 +67,7 @@ export function rankVolunteers(
         score,
         components,
         lastShiftAt,
-        reason: buildReason(
-          tier,
-          components,
-          lastShiftAt,
-          scarceSpoken,
-          now,
-          config,
-        ),
+        reason: buildReason(tier, components, lastShiftAt, now, config),
       };
     })
     .sort(

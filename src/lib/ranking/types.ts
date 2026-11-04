@@ -9,20 +9,11 @@ import type {
 
 export type AvailabilitySlot = { day: DayOfWeek; period: DayPeriod };
 
-export type RankingEnrollment = {
-  semester: { startDate: Date; endDate: Date };
-  enrolledAt: Date;
-  targetPerWeek: number;
-  pausedUntil: Date | null;
-};
-
 export type RankingVolunteer = {
   id: string;
-  createdAt: Date;
   languages: Language[];
   positionIds: string[];
   availability: AvailabilitySlot[];
-  enrollments: RankingEnrollment[];
 };
 
 export type RankingOffer = {
@@ -41,13 +32,10 @@ export type RankingShift = {
   endTime: Date;
   positionId: string | null;
   requiredLanguages: Language[];
-  preferredLanguages: Language[];
 };
 
 export type ScoreComponents = {
-  deficit: number;
   overdue: number;
-  language: number;
   weekLoad: number;
 };
 
