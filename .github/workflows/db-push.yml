@@ -1,0 +1,42 @@
+name: Push schema to Supabase
+
+# Syncs the production Supabase database to prisma/schema.prisma whenever a
+# schema change lands on main. Can also be started by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+    paths:
+      - prisma/schema.prisma
+      - prisma.config.ts
+      - prisma.supabase.config.ts
+  workflow_dispatch:
+
+# Never run two pushes at once and never cancel one halfway
+concurrency:
+  group: db-push
+  cancel-in-progress: false
+
+jobs:
+  push:
+    name: prisma db push
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No --accept-data-loss: if the change would drop a column or table that
+      # has data, Prisma exits with an error and changes nothing. A person then
+      # reviews it and runs `npm run db:push:supabase` locally.
+      - name: Push schema
+        run: npm run db:push:supabase
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
