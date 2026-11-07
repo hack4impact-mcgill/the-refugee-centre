@@ -10,7 +10,10 @@
     "lint:fix": "eslint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:push:supabase": "prisma db push --config prisma.supabase.config.ts"
   },
   "dependencies": {
     "@fullcalendar/react": "^7.1.0",
