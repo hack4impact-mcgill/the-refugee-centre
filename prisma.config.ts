@@ -1,8 +1,9 @@
 import { loadEnvConfig } from "@next/env";
 import { defineConfig } from "prisma/config";
 
-// Load .env.local the same way `next dev` does, so the CLI can read the same environment variables as app
-loadEnvConfig(process.cwd());
+// Load env files the same way `next dev` does (.env.development, then .env.local overrides)
+// true flag selects development mode
+loadEnvConfig(process.cwd(), true);
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

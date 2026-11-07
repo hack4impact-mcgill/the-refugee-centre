@@ -33,8 +33,7 @@ npm install
 Set up the local database (first time only, see [Database](#database) below):
 
 1. Start Docker Desktop.
-2. Create `.env.local` in the project root with the local connection strings shown in [Local database](#local-database).
-3. Start Postgres and create the tables:
+2. Start Postgres and create the tables (the connection strings are already in `.env.development`):
 
    ```bash
    npm run db:up
@@ -66,7 +65,7 @@ Never point your `.env.local` at Supabase for day-to-day work. Experiment on you
 
 `docker-compose.yml` runs Postgres 17 on `localhost:5432`, with user `postgres`, password `postgres` and database `trc`. The data is kept in a Docker volume so it survives restarts
 
-Put these in `.env.local`. Both the app and the Prisma CLI read their connection strings from it:
+The connection strings for it are committed in `.env.development`, so there's nothing to set up. Both `npm run dev` and the Prisma CLI load that file; production builds don't:
 
 ```bash
 # Used by the app at runtime (on Vercel this is Supabase's transaction pooler)
@@ -75,6 +74,8 @@ POSTGRES_PRISMA_URL="postgresql://postgres:postgres@localhost:5432/trc"
 POSTGRES_URL_NON_POOLING="postgresql://postgres:postgres@localhost:5432/trc"
 ```
 
+To use different values on your machine only, set the same variable in `.env.local` which takes priority over `.env.development`
+
 ```bash
 npm run db:up               # Start Postgres in the background (waits until it's ready)
 npm run db:down             # Stop it; the data is kept
@@ -82,7 +83,7 @@ docker compose down -v      # Stop it and delete all local data (then run `npx p
 docker compose logs db      # See Postgres logs if something won't connect
 ```
 
-If `npm run db:up` fails because port 5432 is already in use, you already have Postgres installed on your machine. Either stop that service, or change the left side of `"5432:5432"` in `docker-compose.yml` (for example to `"5433:5432"`) and use that port in your `.env.local` URLs. Don't commit the port change.
+If `npm run db:up` fails because port 5432 is already in use, you already have Postgres installed on your machine. Either stop that service, or change the left side of `"5432:5432"` in `docker-compose.yml` (for example to `"5433:5432"`) and set both URLs with that port in your `.env.local`
 
 #### Changing the schema
 
@@ -93,7 +94,7 @@ If `npm run db:up` fails because port 5432 is already in use, you already have P
 > npx prisma generate
 > ```
 >
-> With the `.env.local` above, this only changes your local database. Commit the `schema.prisma` change in your PR.
+> With the default URLs in `.env.development`, this only changes your local database. Commit the `schema.prisma` change in your PR.
 >
 > This is temporary. Before launch, switch to the migration workflow below by creating a single migration from the schema at that point, then use migrations for every change after it.
 
@@ -140,7 +141,7 @@ Useful commands:
 ```bash
 npx prisma generate                                         # Rebuild the typed client after any schema change (npm install also does this)
 npx prisma format                                           # Format schema.prisma and fill in missing relation fields (Prettier doesn't touch .prisma files)
-npx prisma studio                                           # Browse and edit data in the browser; edits are saved to the database in .env.local
+npx prisma studio                                           # Browse and edit data in the browser, edits are saved to the POSTGRES_URL_NON_POOLING database
 npx prisma migrate status                                   # List which migrations the database has applied
 npx prisma migrate dev --name <what-changed>                # Write a migration from schema.prisma and apply it
 npx prisma migrate dev --name <what-changed> --create-only  # Write the migration without applying it, so the SQL can be edited first
