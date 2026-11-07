@@ -1,6 +1,7 @@
-# Local Postgres for development. Matches the Supabase project's major version (17).
-# Start with `npm run db:up`, stop with `npm run db:down`. Data persists in the
-# `trc-pgdata` volume until you run `docker compose down -v`.
+# Local Postgres for development
+# Start: `npm run db:up`
+# Stop: `npm run db:down`
+# Data persistence:  `trc-pgdata` volume until `docker compose down -v`
 services:
   db:
     image: postgres:17-alpine
