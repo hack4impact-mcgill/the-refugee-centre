@@ -1,0 +1,59 @@
+// Learn more about the Prisma schema: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Volunteer {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  name           String?
+  phone          String?
+  email          String?  @unique
+  approvedShifts Int?     @default(0) @map("approved_shifts")
+  refusedShifts  Int?     @default(0) @map("refused_shifts")
+
+  @@map("volunteers")
+}
+
+enum Language {
+  English
+  French
+  Arabic
+  Spanish
+  Ukrainian
+  Russian
+  Farsi
+  Mandarin
+
+  @@map("language")
+}
+
+enum ShiftLocation {
+  TRC
+  Offsite
+  Remote
+
+  @@map("shift_location")
+}
+
+model Shift {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  title              String
+  startTime          DateTime      @map("start_time") @db.Timestamptz(6)
+  endTime            DateTime      @map("end_time") @db.Timestamptz(6)
+  allDay             Boolean       @default(false) @map("all_day")
+  location           ShiftLocation @default(TRC)
+  address            String?
+  requiredLanguages  Language[]    @map("required_languages")
+  preferredLanguages Language[]    @map("preferred_languages")
+
+  @@index([startTime])
+  @@map("shifts")
+}

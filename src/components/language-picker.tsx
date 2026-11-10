@@ -2,7 +2,7 @@
 
 import { BsX } from "react-icons/bs";
 import Field, { fieldClassName } from "@/components/field";
-import { LANGUAGES, type Language } from "@/lib/languages";
+import { Language } from "@/generated/prisma/enums";
 
 export default function LanguagePicker({
   id,
@@ -15,7 +15,9 @@ export default function LanguagePicker({
   values: Language[];
   onChange: (languages: Language[]) => void;
 }) {
-  const remaining = LANGUAGES.filter((language) => !values.includes(language));
+  const remaining = Object.values(Language).filter(
+    (language) => !values.includes(language),
+  );
 
   return (
     <Field label={label} htmlFor={id}>

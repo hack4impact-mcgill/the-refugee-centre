@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   useCalendarController,
   type DateSelectInfo,
+  type DatesSetInfo,
   type EventClickInfo,
   type EventDropInfo,
   type EventInput,
@@ -14,21 +15,20 @@ import classicThemePlugin from "@fullcalendar/react/themes/classic";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
-import {
-  BsChevronLeft,
-  BsChevronRight,
-  BsPlusLg,
-  BsSearch,
-} from "react-icons/bs";
+import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
-import ShiftPopup, {
+import {
   EMPTY_SHIFT_DETAILS,
+  detailsFromEvent,
+  detailsOf,
+  eventOf,
+  inputOf,
   shiftEventClass,
-  type AnchorRect,
-  type ShiftDetails,
   type ShiftDraft,
-} from "./shift-popup";
+} from "@/lib/shifts";
+import type { ShiftRecord } from "@/lib/schemas/shift";
+import ShiftPopup from "./shift-popup";
 
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
@@ -45,60 +45,67 @@ const actionButtonClassName =
 const navButtonClassName =
   "flex h-9.5 cursor-pointer items-center rounded-lg px-3 py-2 text-navy-900 transition-colors hover:bg-sandstone-300";
 
-// Highlights today's date label: the day header in week view and the day
-// number in month view. FullCalendar adds it alongside the theme's own classes.
+const todayButtonClassName =
+  "flex h-9.5 cursor-pointer items-center rounded-lg border border-sandstone-300 px-3 py-2 text-body1 text-navy-900 transition-colors hover:bg-sandstone-300";
+
 function todayLabelClass({ isToday }: { isToday: boolean }) {
   return isToday
     ? "rounded-full bg-navy-700 px-2 font-bold text-sandstone-200"
     : "";
 }
 
-// Client components are still prerendered on the server. FullCalendar renders
-// from "today", which differs between build time and the visitor's browser, so
-// skip it on the server to avoid a hydration mismatch.
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
   ssr: false,
 });
 
 // View docs for FullCalendar callback functions: https://fullcalendar.io/docs/event-dragging-resizing
 
-function anchorFromPointer(event: MouseEvent | null): AnchorRect {
-  if (!event) {
-    return {
-      top: window.innerHeight / 2,
-      left: window.innerWidth / 2,
-      width: 0,
-      height: 0,
-    };
-  }
-  return { top: event.clientY, left: event.clientX, width: 0, height: 0 };
-}
-
-/** Splits a draft into the calendar's own fields and the popup's extra ones. */
-function detailsOf(draft: ShiftDraft): ShiftDetails {
-  return {
-    location: draft.location,
-    address: draft.address,
-    requiredLanguages: draft.requiredLanguages,
-    preferredLanguages: draft.preferredLanguages,
-  };
-}
-
-/** Reads the popup's fields back off a saved shift, tolerating older events. */
-function detailsFromEvent(props: Record<string, unknown> | undefined) {
-  return { ...EMPTY_SHIFT_DETAILS, ...(props as Partial<ShiftDetails>) };
-}
-
 export default function Schedule() {
   const calendar = useCalendarController();
+  const todayButton = calendar.getButtonState().today;
   const [shifts, setShifts] = useState<EventInput[]>([]);
-  // The pending shift: drawn or moved on the calendar, but not committed to
-  // `shifts` until the popup is saved.
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
+  const [pending, setPending] = useState<"save" | "delete" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const loadController = useRef<AbortController | null>(null);
 
-  // A brand new shift has no event on the calendar yet, so render it from the
-  // draft. While an existing shift is being edited this returns `shifts`
-  // untouched, which keeps FullCalendar's own drag preview in place.
+  async function loadShifts(info: DatesSetInfo) {
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+
+    const params = new URLSearchParams({
+      start: info.start.toISOString(),
+      end: info.end.toISOString(),
+    });
+    try {
+      const response = await fetch(`/api/shifts?${params}`, {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const records: ShiftRecord[] = await response.json();
+      setShifts(records.map(eventOf));
+      setError(null);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      console.error(err);
+      setError("Couldn't load shifts.");
+    }
+  }
+
+  // A brand new shift isn't in `shifts` yet, so it is appended here from the
+  // draft to make it show up on the calendar.
+  //
+  // useMemo keeps the array's identity stable between renders. FullCalendar
+  // only treats `events` as unchanged when it gets the same array, or one whose
+  // items are all === to the previous ones. The appended draft event is a new
+  // object every time this runs, so without useMemo any re-render (e.g.
+  // `pending` flipping while saving) would look like an event change and make
+  // FullCalendar process every shift again. With it, the array is only rebuilt
+  // when `shifts` or `draft` actually change.
+  //
+  // When no new shift is being drafted, `shifts` is returned as is: it comes
+  // straight from state, so its identity is already stable.
   const events = useMemo<EventInput[]>(() => {
     if (!draft?.isNew) return shifts;
     return [
@@ -115,7 +122,6 @@ export default function Schedule() {
     ];
   }, [shifts, draft]);
 
-  // Click-and-drag on empty space drafts a shift for that time range.
   function handleSelect(info: DateSelectInfo) {
     setDraft({
       ...EMPTY_SHIFT_DETAILS,
@@ -126,13 +132,10 @@ export default function Schedule() {
       allDay: info.allDay,
       isNew: true,
       revert: null,
-      anchor: anchorFromPointer(info.jsEvent),
     });
     info.view.calendar.unselect();
   }
 
-  // Clicking a saved shift reopens the popup on it. Nothing has moved, so
-  // there is nothing to revert when the draft is discarded.
   function handleShiftClick(info: EventClickInfo) {
     const { event } = info;
     const start = event.start ?? new Date();
@@ -146,72 +149,100 @@ export default function Schedule() {
       allDay: event.allDay,
       isNew: false,
       revert: null,
-      anchor: anchorFromPointer(info.jsEvent),
     });
   }
 
-  // Dragging or resizing a shift reports its new times. Hold them in the draft
-  // and keep FullCalendar's `revert` around so discarding puts the shift back.
   function handleShiftChange(info: EventDropInfo | EventResizeDoneInfo) {
     const { event } = info;
     const start = event.start ?? new Date();
 
-    setDraft((current) => ({
-      // Keep whatever the popup already collected for this shift; fall back to
-      // the fields stored on the saved event.
-      ...(current && current.id === event.id
-        ? detailsOf(current)
-        : detailsFromEvent(event.extendedProps)),
-      id: event.id,
-      title: event.title,
-      start,
-      end: event.end ?? start,
-      allDay: event.allDay,
-      isNew: false,
-      // Dragging the same shift twice before saving: the first revert undoes
-      // the whole thing, later ones only undo the last move.
-      revert:
-        current && !current.isNew && current.id === event.id
-          ? current.revert
-          : info.revert,
-      anchor: anchorFromPointer(info.jsEvent),
-    }));
+    setDraft((current) => {
+      const sameShift = current?.id === event.id;
+      const isNew = sameShift && current.isNew;
+
+      return {
+        ...(sameShift
+          ? detailsOf(current)
+          : detailsFromEvent(event.extendedProps)),
+        id: event.id,
+        title: event.title,
+        start,
+        end: event.end ?? start,
+        allDay: event.allDay,
+        isNew,
+        revert: isNew ? null : (sameShift && current.revert) || info.revert,
+      };
+    });
   }
 
-  const discardDraft = useCallback(() => {
+  function discardDraft() {
     draft?.revert?.();
     setDraft(null);
-  }, [draft]);
+  }
 
-  function saveDraft() {
-    if (!draft) return;
-    const saved: EventInput = {
-      id: draft.id,
-      title: draft.title.trim() || "Untitled shift",
-      start: draft.start,
-      end: draft.end,
-      allDay: draft.allDay,
-      className: shiftEventClass(draft.id),
-      extendedProps: detailsOf(draft),
-    };
+  async function saveDraft() {
+    if (!draft || pending) return;
+    setPending("save");
+    try {
+      const response = await fetch(
+        draft.isNew ? "/api/shifts" : `/api/shifts/${draft.id}`,
+        {
+          method: draft.isNew ? "POST" : "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(inputOf(draft)),
+        },
+      );
+      if (!response.ok) throw new Error(await response.text());
+      const saved = eventOf(await response.json());
 
-    setShifts((current) =>
-      draft.isNew
-        ? [...current, saved]
-        : current.map((shift) =>
-            shift.id === draft.id ? { ...shift, ...saved } : shift,
-          ),
-    );
-    setDraft(null);
+      setShifts((current) =>
+        draft.isNew
+          ? [...current, saved]
+          : current.map((shift) => (shift.id === draft.id ? saved : shift)),
+      );
+      setDraft(null);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Couldn't save the shift. Try again.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function deleteDraft() {
+    if (!draft || draft.isNew || pending) return;
+    setPending("delete");
+    try {
+      const response = await fetch(`/api/shifts/${draft.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error(await response.text());
+      }
+      setShifts((current) => current.filter((shift) => shift.id !== draft.id));
+      setDraft(null);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Couldn't delete the shift. Try again.");
+    } finally {
+      setPending(null);
+    }
   }
 
   return (
     <>
       <div className="flex items-center justify-between border-b border-sandstone-300 px-8 py-4">
         <div className="flex items-center gap-2.5">
-          <h2 className="min-h-5 min-w-60 text-h6" aria-live="polite">
-            {calendar.view?.title}
-          </h2>
+          <button
+            type="button"
+            title={todayButton.hint || undefined}
+            onClick={() => calendar.today()}
+            className={todayButtonClassName}
+          >
+            Today
+          </button>
           <div className="flex items-center">
             <button
               type="button"
@@ -230,6 +261,9 @@ export default function Schedule() {
               <BsChevronRight aria-hidden className="size-5.5" />
             </button>
           </div>
+          <h2 className="min-h-5 min-w-60 text-h6" aria-live="polite">
+            {calendar.view?.title}
+          </h2>
           <div
             role="group"
             aria-label="Calendar view"
@@ -256,6 +290,11 @@ export default function Schedule() {
           </div>
         </div>
         <div className="flex items-center gap-5">
+          {error && (
+            <p role="alert" className="text-body2 text-red-700">
+              {error}
+            </p>
+          )}
           <button type="button" className={actionButtonClassName}>
             <FaPaperPlane aria-hidden className="size-5.5" />
             Assign shifts
@@ -267,73 +306,46 @@ export default function Schedule() {
         </div>
       </div>
 
-      <div className="flex flex-1">
-        <div className="flex w-62 shrink-0 flex-col gap-2.5 border-r border-sandstone-300 p-2.5">
-          <label className="flex h-9.5 items-center gap-3 rounded-lg border border-sandstone-300 bg-white px-3 py-2">
-            <BsSearch
-              aria-hidden
-              className="size-5 shrink-0 text-sandstone-500"
-            />
-            <span className="sr-only">Search shifts</span>
-            <input
-              type="search"
-              placeholder="Search"
-              className="min-w-0 flex-1 text-body1 outline-none placeholder:text-sandstone-500"
-            />
-          </label>
-          <button
-            type="button"
-            className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-sandstone-500 bg-sandstone-200 p-3 text-body1 leading-5.5 transition-colors hover:bg-sandstone-300"
-          >
-            <BsPlusLg aria-hidden className="size-5.5" />
-            New shift
-          </button>
-        </div>
-
-        {/* The absolute wrapper gives the calendar a fixed size (the space
-            left below the header), so it fills the screen and scrolls inside
-            itself instead of growing the page. */}
-        <div className="relative min-w-0 flex-1">
-          <div className="absolute inset-0">
-            <FullCalendar
-              controller={calendar}
-              plugins={[
-                classicThemePlugin,
-                timeGridPlugin,
-                dayGridPlugin,
-                interactionPlugin,
-              ]}
-              initialView="timeGridWeek"
-              headerToolbar={false}
-              weekends={false}
-              height="100%"
-              dayHeaderInnerClass={todayLabelClass}
-              dayCellTopInnerClass={todayLabelClass}
-              views={{
-                timeGridWeek: {
-                  titleFormat: {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  },
-                  allDaySlot: false,
-                  slotMinTime: "08:00",
-                  slotMaxTime: "18:00",
-                  nowIndicator: true,
-                  // Stretch the time slots to fill the height.
-                  expandRows: true,
+      <div className="relative min-w-0 flex-1">
+        <div className="absolute inset-0">
+          <FullCalendar
+            controller={calendar}
+            plugins={[
+              classicThemePlugin,
+              timeGridPlugin,
+              dayGridPlugin,
+              interactionPlugin,
+            ]}
+            initialView="timeGridWeek"
+            headerToolbar={false}
+            weekends={false}
+            height="100%"
+            dayHeaderInnerClass={todayLabelClass}
+            dayCellTopInnerClass={todayLabelClass}
+            views={{
+              timeGridWeek: {
+                titleFormat: {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
                 },
-              }}
-              events={events}
-              editable
-              selectable
-              selectMirror
-              select={handleSelect}
-              eventClick={handleShiftClick}
-              eventDrop={handleShiftChange}
-              eventResize={handleShiftChange}
-            />
-          </div>
+                allDaySlot: false,
+                slotMinTime: "08:00",
+                slotMaxTime: "18:00",
+                nowIndicator: true,
+                expandRows: true,
+              },
+            }}
+            events={events}
+            datesSet={loadShifts}
+            editable
+            selectable
+            selectMirror
+            select={handleSelect}
+            eventClick={handleShiftClick}
+            eventDrop={handleShiftChange}
+            eventResize={handleShiftChange}
+          />
         </div>
       </div>
 
@@ -346,7 +358,9 @@ export default function Schedule() {
               current ? { ...current, ...patch } : current,
             )
           }
+          pending={pending}
           onSave={saveDraft}
+          onDelete={deleteDraft}
           onDiscard={discardDraft}
         />
       )}
