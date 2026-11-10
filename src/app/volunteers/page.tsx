@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import VolunteersTable from "./table";
 
 export const metadata: Metadata = {
   title: "Volunteers | The Refugee Centre",
@@ -6,11 +7,12 @@ export const metadata: Metadata = {
 
 export default function VolunteersPage() {
   return (
-    <section className="mx-auto max-w-5xl px-6 py-12">
-      <h1 className="text-h4">Volunteers</h1>
-      <p className="mt-4 text-body1 text-navy-700">
-        View and manage volunteer profiles. This page is coming soon.
-      </p>
-    </section>
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="border-b border-[#b2b2b2] px-8 pt-8 pb-4">
+        <h1 className="text-h4">Volunteers</h1>
+      </header>
+
+      <VolunteersTable />
+    </div>
   );
 }
