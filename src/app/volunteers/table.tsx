@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { FaTrashAlt } from "react-icons/fa";
 import VolunteersToolbar from "./toolbar";
-import SelectionBanner from "./SelectionBanner";
+import SelectionBanner from "./selection-banner";
+import DeleteConfirmationModal from "./delete-confirmation-modal";
+import DeleteToast from "./delete-toast";
 
 const MOCK_VOLUNTEERS = [
     {
@@ -11,7 +12,7 @@ const MOCK_VOLUNTEERS = [
         name: "Leticia Huang",
         email: "leticia.huang@mail.mcgill.ca",
         phone: "+1 (XXX) XXX-XXXX",
-        languages: ["French", "English"],
+        languages: ["English"],
         positions: ["Receptionist", "Portal Worker"],
         approvedShifts: 1,
         refusedShifts: 3,
@@ -24,7 +25,7 @@ const MOCK_VOLUNTEERS = [
     email: "amine.saoudi@mail.mcgill.ca",
     phone: "+1 (XXX) XXX-XXXX",
     languages: ["French", "English"],
-    positions: ["Receptionist", "Portal Worker"],
+    positions: ["Receptionist"],
     approvedShifts: 1,
     refusedShifts: 3,
     availability: ["Monday (9 AM-12 PM)"],
@@ -44,21 +45,82 @@ const MOCK_VOLUNTEERS = [
   },
 ];
 
+type FilterField = "name" | "languages" | "positions";
+
 export default function VolunteersTable(){
     const [volunteers, setVolunteers] = useState(MOCK_VOLUNTEERS);
+    // for the main search bar
     const [searchInput, setSearchInput] = useState("");
+    // submitted submitted search term
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletedVolunteers, setDeletedVolunteers] = useState<typeof MOCK_VOLUNTEERS>([]);
+    const [showDeleteToast, setShowDeleteToast] = useState(false);
+    const [selectedFilters, setSelectedFilters] = useState<
+        Record<FilterField, string[]>
+    >({
+        name: [],
+        languages: [],
+        positions: [],
+    });
 
     const handleSelectRow = (id: number) => {
         setSelectedIds((prevBox) =>
             prevBox.includes(id) ? prevBox.filter((currentId) => currentId !== id) : [...prevBox, id]
         );
     };
-    const filteredVolunteers = volunteers.filter((volunteer) => 
-        volunteer.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
-    );
+    // currently only for the main search
+    const filteredVolunteers = volunteers.filter((volunteer) => {
+        // main search
+        const matchesSearch = volunteer.name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase().trim());
+
+        // name filter
+        const matchesName =
+            selectedFilters.name.length === 0 ||
+            selectedFilters.name.some((name) =>
+                volunteer.name.toLowerCase().includes(name.toLowerCase())
+            );
+
+        // spoken languages filter (volunteer has at least one of the selected languages)
+        const matchesLanguages =
+            selectedFilters.languages.length === 0 ||
+            selectedFilters.languages.some((language) =>
+                volunteer.languages.some((spokenLanguage) =>
+                    spokenLanguage.toLowerCase() === language.toLowerCase()
+                )
+            );
+
+        // positions filter (volunteer has at least one of the selected positions)
+        const matchesPositions =
+            selectedFilters.positions.length === 0 ||
+            selectedFilters.positions.some((position) =>
+                volunteer.positions.some((volunteerPosition) =>
+                    volunteerPosition.toLowerCase() === position.toLowerCase()
+                )
+            );
+
+        return (
+            matchesSearch &&
+            matchesName &&
+            matchesLanguages &&
+            matchesPositions
+        );
+    });
+    const handleToggleFilter = (field: FilterField, value: string) => {
+        setSelectedFilters((prev) => {
+            const current = prev[field];
+
+            return {
+                ...prev,
+                [field]: current.includes(value)
+                    ? current.filter((item) => item !== value)
+                    : [...current, value],
+            };
+        });
+    };
     const handleSelectAll = () => {
         // get id of all visible volunteers
         const visibleIds = filteredVolunteers.map((volunteer) => volunteer.id);
@@ -86,13 +148,31 @@ export default function VolunteersTable(){
         setShowDeleteModal(true);
     };
     const handleConfirmDelete = () => {
+        setDeletedVolunteers(
+            volunteers.filter((volunteer) => selectedIds.includes(volunteer.id))
+        );
+
         // new volunteer list is all volunteers - currently selected  
         setVolunteers((prev) =>
             prev.filter((volunteer) => !selectedIds.includes(volunteer.id))
         );
+        
 
         setSelectedIds([]);
         setShowDeleteModal(false);
+        setShowDeleteToast(true);
+    };
+    const handleUndo = () => {
+        setVolunteers((prev) => {
+            // new array with current + deleted volunteers
+            const restored = [...prev, ...deletedVolunteers];
+
+            // Restore the original order of the volunteers
+            return restored.sort((a, b) => a.id - b.id);
+        });
+
+        setDeletedVolunteers([]);
+        setShowDeleteToast(false);
     };
 
     
@@ -103,6 +183,8 @@ export default function VolunteersTable(){
             searchInput={searchInput}
             setSearchInput={setSearchInput}
             setSearchQuery={setSearchQuery}
+            selectedFilters={selectedFilters}
+            onToggleFilter={handleToggleFilter}
             />
 
             <div className="w-full overflow-x-auto">
@@ -218,6 +300,18 @@ export default function VolunteersTable(){
             <SelectionBanner
                 selectedCount={selectedIds.length}
                 onDelete={handleDeleteClick}
+            />
+            <DeleteConfirmationModal
+                isOpen={showDeleteModal}
+                selectedCount={selectedIds.length}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setShowDeleteModal(false)}
+            />
+            <DeleteToast
+                isOpen={showDeleteToast}
+                deletedNames={deletedVolunteers.map((volunteer) => volunteer.name)}
+                onUndo={handleUndo}
+                onClose={() => setShowDeleteToast(false)}
             />
 
         </div>
