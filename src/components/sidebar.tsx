@@ -19,6 +19,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
+  if (pathname === "/login") return null;
+
   return (
     <aside
       className={`sticky top-0 flex h-dvh shrink-0 flex-col justify-between overflow-hidden border-r border-sandstone-300 bg-sandstone-200 px-2 py-4 transition-[width] duration-200 ${
