@@ -7,7 +7,7 @@ import { BsPersonFill } from "react-icons/bs";
 import { FaCalendarAlt, FaHistory } from "react-icons/fa";
 
 const navItems = [
-  { href: "/shifts", label: "Shift Management", Icon: FaCalendarAlt },
+  { href: "/shifts", label: "Calendar", Icon: FaCalendarAlt },
   { href: "/volunteers", label: "Volunteers", Icon: BsPersonFill },
   { href: "/history", label: "History", Icon: FaHistory },
 ];
