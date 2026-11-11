@@ -10,13 +10,16 @@ datasource db {
 }
 
 model Volunteer {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  name           String?
-  phone          String?
-  email          String?  @unique
-  approvedShifts Int?     @default(0) @map("approved_shifts")
-  refusedShifts  Int?     @default(0) @map("refused_shifts")
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  name      String?
+  phone     String?
+  email     String?    @unique
+  languages Language[] @default([])
+
+  offers       ShiftOffer[]
+  positions    VolunteerPosition[]
+  availability VolunteerAvailability[]
 
   @@map("volunteers")
 }
@@ -53,7 +56,106 @@ model Shift {
   address            String?
   requiredLanguages  Language[]    @map("required_languages")
   preferredLanguages Language[]    @map("preferred_languages")
+  positionId         String?       @map("position_id") @db.Uuid
+
+  position Position?    @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  offers   ShiftOffer[]
 
   @@index([startTime])
   @@map("shifts")
+}
+
+enum ShiftOfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  WITHDRAWN
+  CANCELLED_BY_VOLUNTEER
+
+  @@map("shift_offer_status")
+}
+
+enum Attendance {
+  UNMARKED
+  ATTENDED
+  NO_SHOW
+  EXCUSED
+
+  @@map("attendance")
+}
+
+enum RankingTier {
+  A
+  B
+  C
+
+  @@map("ranking_tier")
+}
+
+model ShiftOffer {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  volunteerId String           @map("volunteer_id") @db.Uuid
+  shiftId     String           @map("shift_id") @db.Uuid
+  status      ShiftOfferStatus @default(PENDING)
+  attendance  Attendance       @default(UNMARKED)
+  sentAt      DateTime         @default(now()) @map("sent_at") @db.Timestamptz(6)
+  respondedAt DateTime?        @map("responded_at") @db.Timestamptz(6)
+  rank        Int?
+  tier        RankingTier?
+
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+  shift     Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, volunteerId])
+  @@index([volunteerId, respondedAt])
+  @@index([status])
+  @@map("shift_offers")
+}
+
+model Position {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  name      String   @unique
+
+  shifts     Shift[]
+  volunteers VolunteerPosition[]
+
+  @@map("positions")
+}
+
+model VolunteerPosition {
+  volunteerId String @map("volunteer_id") @db.Uuid
+  positionId  String @map("position_id") @db.Uuid
+
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+  position  Position  @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@id([volunteerId, positionId])
+  @@map("volunteer_positions")
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+
+  @@map("day_of_week")
+}
+
+model VolunteerAvailability {
+  volunteerId String    @map("volunteer_id") @db.Uuid
+  day         DayOfWeek
+  startMinute Int       @map("start_minute")
+  endMinute   Int       @map("end_minute")
+
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  @@id([volunteerId, day, startMinute])
+  @@map("volunteer_availability")
 }
