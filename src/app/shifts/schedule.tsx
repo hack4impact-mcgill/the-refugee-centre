@@ -318,7 +318,6 @@ export default function Schedule() {
             ]}
             initialView="timeGridWeek"
             headerToolbar={false}
-            weekends={false}
             height="100%"
             dayHeaderInnerClass={todayLabelClass}
             dayCellTopInnerClass={todayLabelClass}
@@ -330,10 +329,21 @@ export default function Schedule() {
                   year: "numeric",
                 },
                 allDaySlot: false,
-                slotMinTime: "08:00",
-                slotMaxTime: "18:00",
+                slotMinTime: "09:00",
+                slotMaxTime: "22:00",
                 nowIndicator: true,
                 expandRows: true,
+                // Same markup as FullCalendar's default, with the title above the time.
+                eventContent: (info) => (
+                  <>
+                    <div className={`${info.titleClass} font-bold`}>
+                      {info.event.title || " "}
+                    </div>
+                    {info.timeText && (
+                      <div className={info.timeClass}>{info.timeText}</div>
+                    )}
+                  </>
+                ),
               },
             }}
             events={events}
