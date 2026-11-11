@@ -1,7 +1,8 @@
 import { Temporal } from "temporal-polyfill";
-import type { DayOfWeek, DayPeriod } from "@/generated/prisma/enums";
-import type { RankingConfig } from "./config";
-import type { AvailabilitySlot, RankingShift } from "./types";
+import type { DayOfWeek } from "@/generated/prisma/enums";
+import type { AvailabilityWindow, RankingShift } from "./types";
+
+const MINUTES_PER_DAY = 24 * 60;
 
 /** In Temporal's order, where Monday is day 1. */
 const DAYS_OF_WEEK: DayOfWeek[] = [
@@ -46,46 +47,38 @@ export function isSameWeek(a: Date, b: Date, timeZone: string) {
   );
 }
 
-/** Every day and period the shift overlaps, so an all-day shift covers all three. */
-export function shiftSlots(
+/** The part of each local day the shift covers, in minutes after midnight. */
+export function shiftTimeRanges(
   shift: RankingShift,
-  config: RankingConfig,
-): AvailabilitySlot[] {
-  const { timeZone, afternoonStartHour, eveningStartHour } = config;
+  timeZone: string,
+): AvailabilityWindow[] {
   const start = toZoned(shift.startTime, timeZone).toPlainDateTime();
   const zonedEnd = toZoned(shift.endTime, timeZone).toPlainDateTime();
-  // A zero-length shift still falls in the period it starts in.
+  // A zero-length shift still needs its start minute to be available.
   const end =
     Temporal.PlainDateTime.compare(zonedEnd, start) > 0
       ? zonedEnd
       : start.add({ minutes: 1 });
+  const minuteOf = (time: Temporal.PlainDateTime) =>
+    time.hour * 60 + time.minute;
 
-  const slots: AvailabilitySlot[] = [];
+  const ranges: AvailabilityWindow[] = [];
   for (
     let date = start.toPlainDate();
     Temporal.PlainDate.compare(date, end.toPlainDate()) <= 0;
     date = date.add({ days: 1 })
   ) {
-    const afternoon = date.toPlainDateTime({ hour: afternoonStartHour });
-    const evening = date.toPlainDateTime({ hour: eveningStartHour });
-    const periods: [
-      DayPeriod,
-      Temporal.PlainDateTime,
-      Temporal.PlainDateTime,
-    ][] = [
-      ["MORNING", date.toPlainDateTime(), afternoon],
-      ["AFTERNOON", afternoon, evening],
-      ["EVENING", evening, date.add({ days: 1 }).toPlainDateTime()],
-    ];
-
-    for (const [period, periodStart, periodEnd] of periods) {
-      if (
-        Temporal.PlainDateTime.compare(periodStart, end) < 0 &&
-        Temporal.PlainDateTime.compare(start, periodEnd) < 0
-      ) {
-        slots.push({ day: DAYS_OF_WEEK[date.dayOfWeek - 1], period });
-      }
+    const startMinute = date.equals(start.toPlainDate()) ? minuteOf(start) : 0;
+    const endMinute = date.equals(end.toPlainDate())
+      ? minuteOf(end)
+      : MINUTES_PER_DAY;
+    if (endMinute > startMinute) {
+      ranges.push({
+        day: DAYS_OF_WEEK[date.dayOfWeek - 1],
+        startMinute,
+        endMinute,
+      });
     }
   }
-  return slots;
+  return ranges;
 }

@@ -104,7 +104,6 @@ model ShiftOffer {
   respondedAt DateTime?        @map("responded_at") @db.Timestamptz(6)
   rank        Int?
   tier        RankingTier?
-  score       Float?
 
   volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
   shift     Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
@@ -149,21 +148,14 @@ enum DayOfWeek {
   @@map("day_of_week")
 }
 
-enum DayPeriod {
-  MORNING
-  AFTERNOON
-  EVENING
-
-  @@map("day_period")
-}
-
 model VolunteerAvailability {
   volunteerId String    @map("volunteer_id") @db.Uuid
   day         DayOfWeek
-  period      DayPeriod
+  startMinute Int       @map("start_minute")
+  endMinute   Int       @map("end_minute")
 
   volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
 
-  @@id([volunteerId, day, period])
+  @@id([volunteerId, day, startMinute])
   @@map("volunteer_availability")
 }

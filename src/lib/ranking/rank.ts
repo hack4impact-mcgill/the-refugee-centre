@@ -1,8 +1,8 @@
 import type { RankingConfig } from "./config";
 import { hardFilterFailures } from "./filters";
+import { summarizeAttendance } from "./attendance";
 import { calculatePenalty, tierForPenalty } from "./penalty";
 import { buildReason } from "./reason";
-import { calculateScore } from "./score";
 import type {
   RankingOffer,
   RankingShift,
@@ -20,10 +20,10 @@ function hash(text: string) {
   return value >>> 0;
 }
 
-/** Oldest first, with "never" ahead of everything. */
-function compareLastShift(a: Date | null, b: Date | null) {
-  if (!a || !b) return Number(Boolean(a)) - Number(Boolean(b));
-  return a.getTime() - b.getTime();
+/** Most recent first, with "never" last. */
+function compareLastAttended(a: Date | null, b: Date | null) {
+  if (!a || !b) return Number(Boolean(b)) - Number(Boolean(a));
+  return b.getTime() - a.getTime();
 }
 
 /**
@@ -53,9 +53,8 @@ export function rankVolunteers(
       const own = offersOf(volunteer);
       const penalty = calculatePenalty(own, now, config);
       const tier = tierForPenalty(penalty, config);
-      const { score, components, lastShiftAt } = calculateScore(
+      const { shiftsAttended, lastAttendedAt } = summarizeAttendance(
         own,
-        shift,
         now,
         config,
       );
@@ -64,17 +63,16 @@ export function rankVolunteers(
         tier,
         penalty,
         flaggedForReview: tier === "C",
-        score,
-        components,
-        lastShiftAt,
-        reason: buildReason(tier, components, lastShiftAt, now, config),
+        shiftsAttended,
+        lastAttendedAt,
+        reason: buildReason(tier, shiftsAttended, lastAttendedAt, now, config),
       };
     })
     .sort(
       (a, b) =>
         a.tier.localeCompare(b.tier) ||
-        b.score - a.score ||
-        compareLastShift(a.lastShiftAt, b.lastShiftAt) ||
+        b.shiftsAttended - a.shiftsAttended ||
+        compareLastAttended(a.lastAttendedAt, b.lastAttendedAt) ||
         tiebreak(a.volunteerId) - tiebreak(b.volunteerId) ||
         a.volunteerId.localeCompare(b.volunteerId),
     )

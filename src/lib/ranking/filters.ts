@@ -1,6 +1,11 @@
 import type { RankingConfig } from "./config";
-import { isSameWeek, shiftSlots } from "./time";
-import type { RankingOffer, RankingShift, RankingVolunteer } from "./types";
+import { isSameWeek, shiftTimeRanges } from "./time";
+import type {
+  AvailabilityWindow,
+  RankingOffer,
+  RankingShift,
+  RankingVolunteer,
+} from "./types";
 
 export type FilterFailure =
   | "not-approved-for-position"
@@ -9,6 +14,18 @@ export type FilterFailure =
   | "already-offered-this-shift"
   | "has-pending-offer"
   | "weekly-cap-reached";
+
+/** Back-to-back windows count as one, so 9-11 and 11-13 cover a 10-12 shift. */
+function isCovered(range: AvailabilityWindow, windows: AvailabilityWindow[]) {
+  let reach = range.startMinute;
+  for (const window of windows
+    .filter(({ day }) => day === range.day)
+    .sort((a, b) => a.startMinute - b.startMinute)) {
+    if (window.startMinute > reach) break;
+    reach = Math.max(reach, window.endMinute);
+  }
+  return reach >= range.endMinute;
+}
 
 /** Pass only this volunteer's offers. */
 export function hardFilterFailures(
@@ -24,10 +41,8 @@ export function hardFilterFailures(
     failures.push("not-approved-for-position");
   }
 
-  const isAvailable = shiftSlots(shift, config).every((slot) =>
-    volunteer.availability.some(
-      ({ day, period }) => day === slot.day && period === slot.period,
-    ),
+  const isAvailable = shiftTimeRanges(shift, config.timeZone).every((range) =>
+    isCovered(range, volunteer.availability),
   );
   if (!isAvailable) failures.push("unavailable");
 

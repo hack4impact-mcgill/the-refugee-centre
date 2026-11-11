@@ -1,19 +1,22 @@
 import type {
   Attendance,
   DayOfWeek,
-  DayPeriod,
   Language,
   RankingTier,
   ShiftOfferStatus,
 } from "@/generated/prisma/enums";
 
-export type AvailabilitySlot = { day: DayOfWeek; period: DayPeriod };
+export type AvailabilityWindow = {
+  day: DayOfWeek;
+  startMinute: number;
+  endMinute: number;
+};
 
 export type RankingVolunteer = {
   id: string;
   languages: Language[];
   positionIds: string[];
-  availability: AvailabilitySlot[];
+  availability: AvailabilityWindow[];
 };
 
 export type RankingOffer = {
@@ -34,19 +37,13 @@ export type RankingShift = {
   requiredLanguages: Language[];
 };
 
-export type ScoreComponents = {
-  overdue: number;
-  weekLoad: number;
-};
-
 export type RankedCandidate = {
   volunteerId: string;
   rank: number;
   tier: RankingTier;
   penalty: number;
   flaggedForReview: boolean;
-  score: number;
-  components: ScoreComponents;
-  lastShiftAt: Date | null;
+  shiftsAttended: number;
+  lastAttendedAt: Date | null;
   reason: string;
 };

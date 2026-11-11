@@ -5,9 +5,7 @@ export type RankingConfig = {
   tierBThreshold: number;
   tierCThreshold: number;
   weeklyCap: number;
-  overdueAfterDays: number;
-  overdueBonus: number;
-  weekLoadWeight: number;
+  attendanceWindowDays: number;
   eventWeights: {
     expired: number;
     rejected: number;
@@ -16,9 +14,6 @@ export type RankingConfig = {
     withdrawn: number;
     excused: number;
   };
-  newVolunteerOverdue: boolean;
-  afternoonStartHour: number;
-  eveningStartHour: number;
   tiebreakSeed: string;
 };
 
@@ -29,9 +24,7 @@ export const RANKING_CONFIG: RankingConfig = {
   tierBThreshold: 2.5,
   tierCThreshold: 6,
   weeklyCap: 2,
-  overdueAfterDays: 14,
-  overdueBonus: 2,
-  weekLoadWeight: 1.5,
+  attendanceWindowDays: 90,
   eventWeights: {
     expired: 0.5,
     rejected: 1,
@@ -40,8 +33,5 @@ export const RANKING_CONFIG: RankingConfig = {
     withdrawn: 0,
     excused: 0,
   },
-  newVolunteerOverdue: true,
-  afternoonStartHour: 12,
-  eveningStartHour: 17,
   tiebreakSeed: "rc-52",
 };
