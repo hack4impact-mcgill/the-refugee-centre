@@ -6,7 +6,6 @@ import {
   BsCheckCircleFill,
   BsFillExclamationCircleFill,
   BsInfoCircleFill,
-  BsX,
   BsXCircleFill,
 } from "react-icons/bs";
 
@@ -91,28 +90,18 @@ function Toast({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {action && (
-            <button
-              type="button"
-              onClick={() => {
-                sonner.dismiss(id);
-                action.onClick();
-              }}
-              className={`cursor-pointer rounded px-1 py-0.5 text-sandstone-600 transition-colors hover:bg-black/5 hover:text-sandstone-900 ${smallTextClassName}`}
-            >
-              {action.label}
-            </button>
-          )}
+        {action && (
           <button
             type="button"
-            aria-label="Dismiss"
-            onClick={() => sonner.dismiss(id)}
-            className="cursor-pointer rounded text-sandstone-600 transition-colors hover:bg-black/5 hover:text-sandstone-900"
+            onClick={() => {
+              sonner.dismiss(id);
+              action.onClick();
+            }}
+            className={`shrink-0 cursor-pointer rounded px-1 py-0.5 text-sandstone-600 transition-colors hover:bg-black/5 hover:text-sandstone-900 ${smallTextClassName}`}
           >
-            <BsX aria-hidden className="size-5.5" />
+            {action.label}
           </button>
-        </div>
+        )}
       </div>
 
       {/* Pauses whenever Sonner pauses its timer: on hover and while the tab is hidden. */}
