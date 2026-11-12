@@ -37,7 +37,16 @@ export function inputOf(draft: ShiftDraft): ShiftInput {
   };
 }
 
-export function eventOf(shift: ShiftRecord): EventInput {
+export type ShiftEvent = EventInput & {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  extendedProps: ShiftDetails;
+};
+
+export function eventOf(shift: ShiftRecord): ShiftEvent {
   const details: ShiftDetails = {
     location: shift.location,
     address: shift.address ?? "",
@@ -52,6 +61,16 @@ export function eventOf(shift: ShiftRecord): EventInput {
     allDay: shift.allDay,
     className: shiftEventClass(shift.id),
     extendedProps: details,
+  };
+}
+
+export function inputOfEvent(event: ShiftEvent): ShiftInput {
+  return {
+    ...event.extendedProps,
+    title: event.title,
+    startTime: event.start,
+    endTime: event.end,
+    allDay: event.allDay,
   };
 }
 
@@ -117,6 +136,10 @@ function formatDuration(start: Date, end: Date) {
   if (hours && minutes) return `${hours} hr ${minutes} min`;
   if (hours) return `${hours} hr`;
   return `${minutes} min`;
+}
+
+export function summarizeShift(event: ShiftEvent) {
+  return `${event.title} · ${shortDayFormat.format(new Date(event.start))}`;
 }
 
 export function formatDateLine(draft: ShiftDraft) {
