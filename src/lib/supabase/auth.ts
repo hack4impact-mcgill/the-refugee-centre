@@ -1,18 +1,23 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
 
-export async function signInWithEmailPassword(email: string, password: string) {
+export async function sendMagicLink(
+  email: string,
+  redirectTo: string,
+  shouldCreateUser: boolean,
+) {
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithOtp({
     email,
-    password,
+    options: {
+      emailRedirectTo: redirectTo,
+      shouldCreateUser,
+    },
   });
 
   if (error) {
     throw error;
   }
-
-  return data;
 }
 
 export async function signOut() {
