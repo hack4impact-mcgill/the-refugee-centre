@@ -178,3 +178,4 @@ to `.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="<publishable-key>"
+```
