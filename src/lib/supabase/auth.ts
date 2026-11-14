@@ -1,9 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
 
-/**
- * Emails a sign-in link to an existing account. It never creates an account:
- * admins are only added from the Supabase dashboard or the /admins page.
- */
 export async function sendMagicLink(email: string, redirectTo: string) {
   const supabase = getSupabaseClient();
 
@@ -11,6 +7,7 @@ export async function sendMagicLink(email: string, redirectTo: string) {
     email,
     options: {
       emailRedirectTo: redirectTo,
+      // Accounts are only created by invitation.
       shouldCreateUser: false,
     },
   });

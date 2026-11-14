@@ -5,10 +5,9 @@ import { isAuthError } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSignedIn } from "@/lib/supabase/server";
 
-export type CreateAdminState = {
+export type InviteAdminState = {
   status: "idle" | "success" | "error";
   message: string;
-  /** Echoed back on errors so the field keeps what was typed. */
   email: string;
 };
 
@@ -20,21 +19,16 @@ const schema = z.object({
     .pipe(z.email("Enter a valid email address.")),
 });
 
-/**
- * Creates a confirmed Supabase Auth account for a new admin. Every account is
- * an admin, so any signed-in user may add another. The new admin then signs
- * in from /login with a magic link.
- */
-export async function createAdmin(
-  _prevState: CreateAdminState,
+// Every account is an admin, so any signed-in user can invite another.
+export async function inviteAdmin(
+  _prevState: InviteAdminState,
   formData: FormData,
-): Promise<CreateAdminState> {
-  // The proxy already blocks signed-out users, but Server Actions can be
-  // called directly, so check again here.
+): Promise<InviteAdminState> {
+  // Server Actions can be called without going through the proxy.
   if (!(await isSignedIn())) {
     return {
       status: "error",
-      message: "Your session has expired. Sign in again to add an admin.",
+      message: "Your session has expired. Sign in again to invite an admin.",
       email: "",
     };
   }
@@ -52,13 +46,7 @@ export async function createAdmin(
 
   try {
     const supabase = createSupabaseAdminClient();
-    const { error } = await supabase.auth.admin.createUser({
-      email,
-      // The account is created by a trusted admin, so skip the confirmation
-      // email. The new admin proves they own the address by using the magic
-      // link sent when they sign in.
-      email_confirm: true,
-    });
+    const { error } = await supabase.auth.admin.inviteUserByEmail(email);
 
     if (error) {
       if (
@@ -71,22 +59,30 @@ export async function createAdmin(
           email,
         };
       }
+      if (error.code === "over_email_send_rate_limit") {
+        return {
+          status: "error",
+          message:
+            "Too many emails have been sent recently. Wait a while and try again.",
+          email,
+        };
+      }
       throw error;
     }
   } catch (error) {
-    console.error("Failed to create admin", error);
+    console.error("Failed to invite admin", error);
     return {
       status: "error",
       message: isAuthError(error)
-        ? `Supabase could not create the account: ${error.message}`
-        : "Unable to create the account right now. Please try again.",
+        ? `Supabase could not send the invitation: ${error.message}`
+        : "Unable to send the invitation right now. Please try again.",
       email,
     };
   }
 
   return {
     status: "success",
-    message: `Account created for ${email}. They can now sign in from the sign-in page with that email.`,
+    message: `Invitation sent to ${email}. Their account is confirmed once they click the link in the email.`,
     email: "",
   };
 }

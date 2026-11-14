@@ -16,7 +16,7 @@ const navItems = [
   { href: "/shifts", label: "Calendar", Icon: FaCalendarAlt },
   { href: "/volunteers", label: "Volunteers", Icon: BsPersonFill },
   { href: "/history", label: "History", Icon: FaHistory },
-  { href: "/admins", label: "Add admin", Icon: FaUserShield },
+  { href: "/admins", label: "Invite admin", Icon: FaUserShield },
 ];
 
 const itemClassName =

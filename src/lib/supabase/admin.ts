@@ -3,10 +3,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-/**
- * A Supabase client with the secret key, which bypasses the "Allow new users
- * to sign up" setting and row level security.
- */
+// Server only: the secret key bypasses sign-up restrictions and RLS.
 export function createSupabaseAdminClient() {
   const { url } = getSupabaseEnv();
   const secretKey =

@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { createAdmin, type CreateAdminState } from "@/app/admins/actions";
+import { inviteAdmin, type InviteAdminState } from "@/app/admins/actions";
 
-const initialState: CreateAdminState = {
+const initialState: InviteAdminState = {
   status: "idle",
   message: "",
   email: "",
@@ -11,7 +11,7 @@ const initialState: CreateAdminState = {
 
 export default function NewAdminForm() {
   const [state, formAction, pending] = useActionState(
-    createAdmin,
+    inviteAdmin,
     initialState,
   );
 
@@ -22,8 +22,7 @@ export default function NewAdminForm() {
           Email
         </label>
         <input
-          // Remount after each submission so the field shows the email
-          // returned by the action (kept on errors, cleared on success).
+          // Remount to keep the email on errors and clear it on success.
           key={`${state.status}:${state.email}`}
           id="email"
           name="email"
@@ -41,7 +40,7 @@ export default function NewAdminForm() {
         disabled={pending}
         className="w-full rounded-lg bg-navy-900 px-5 py-2.5 text-body1 text-white transition-colors hover:bg-navy-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-700 disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {pending ? "Creating account..." : "Create admin account"}
+        {pending ? "Sending invitation..." : "Send invitation"}
       </button>
       <p
         aria-live="polite"
