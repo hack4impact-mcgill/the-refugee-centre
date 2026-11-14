@@ -27,12 +27,10 @@ export async function createSupabaseServerClient() {
   });
 }
 
-export async function getCurrentUser() {
+export async function isSignedIn() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  const { data } = await supabase.auth.getClaims();
+  return Boolean(data?.claims);
 }
 
 export function unauthorized() {

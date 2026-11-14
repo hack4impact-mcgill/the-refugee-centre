@@ -4,6 +4,12 @@ import { sendMagicLink } from "@/lib/supabase/auth";
 import Image from "next/image";
 import { type FormEvent, useState } from "react";
 
+function isAccountNotFound(error: unknown) {
+  return (
+    error instanceof Error && "code" in error && error.code === "otp_disabled"
+  );
+}
+
 export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState(
@@ -36,11 +42,17 @@ export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
       setMessage("Check your email for a sign-in link.");
       setIsError(false);
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to sign in with Supabase right now.",
-      );
+      if (isAccountNotFound(error)) {
+        setMessage(
+          "No account exists for this email. Contact an administrator to get access.",
+        );
+      } else {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to sign in with Supabase right now.",
+        );
+      }
       setIsError(true);
     } finally {
       setIsSubmitting(false);

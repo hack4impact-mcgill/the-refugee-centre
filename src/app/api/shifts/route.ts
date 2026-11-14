@@ -2,11 +2,11 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { shiftInputSchema, shiftRangeSchema } from "@/lib/schemas/shift";
-import { getCurrentUser, unauthorized } from "@/lib/supabase/server";
+import { isSignedIn, unauthorized } from "@/lib/supabase/server";
 
 /** Lists the shifts overlapping `?start=…&end=…` (ISO dates). */
 export async function GET(request: NextRequest) {
-  if (!(await getCurrentUser())) return unauthorized();
+  if (!(await isSignedIn())) return unauthorized();
 
   const range = shiftRangeSchema.safeParse(
     Object.fromEntries(request.nextUrl.searchParams),
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
 /** Creates a shift from a `ShiftInput` body. */
 export async function POST(request: NextRequest) {
-  if (!(await getCurrentUser())) return unauthorized();
+  if (!(await isSignedIn())) return unauthorized();
 
   const body = await request.json().catch(() => null);
   const input = shiftInputSchema.safeParse(body);
