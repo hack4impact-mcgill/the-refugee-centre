@@ -2,21 +2,13 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabasePublicKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url, publicKey } = getSupabaseEnv();
 
-  if (!supabaseUrl || !supabasePublicKey) {
-    throw new Error(
-      "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to your .env.local file.",
-    );
-  }
-
-  return createServerClient(supabaseUrl, supabasePublicKey, {
+  return createServerClient(url, publicKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -33,4 +25,16 @@ export async function createSupabaseServerClient() {
       },
     },
   });
+}
+
+export async function getCurrentUser() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+}
+
+export function unauthorized() {
+  return Response.json({ error: "Not signed in" }, { status: 401 });
 }
