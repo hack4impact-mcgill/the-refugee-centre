@@ -2,14 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BsPersonFill } from "react-icons/bs";
-import { FaCalendarAlt, FaHistory } from "react-icons/fa";
+import {
+  FaCalendarAlt,
+  FaHistory,
+  FaSignOutAlt,
+  FaUserShield,
+} from "react-icons/fa";
+import { signOut } from "@/lib/supabase/auth";
 
 const navItems = [
   { href: "/shifts", label: "Calendar", Icon: FaCalendarAlt },
   { href: "/volunteers", label: "Volunteers", Icon: BsPersonFill },
   { href: "/history", label: "History", Icon: FaHistory },
+  { href: "/admins", label: "Invite admin", Icon: FaUserShield },
 ];
 
 const itemClassName =
@@ -17,7 +24,24 @@ const itemClassName =
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  if (pathname === "/login") return null;
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      window.alert("Unable to sign out right now. Please try again.");
+      setIsSigningOut(false);
+    }
+  }
 
   return (
     <aside
@@ -65,6 +89,18 @@ export default function Sidebar() {
           </span>
           <span className={`whitespace-nowrap ${collapsed ? "sr-only" : ""}`}>
             {collapsed ? "Expand" : "Collapse"}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+          title={collapsed ? "Sign out" : undefined}
+          className={`${itemClassName} cursor-pointer disabled:cursor-not-allowed disabled:opacity-70`}
+        >
+          <FaSignOutAlt aria-hidden className="size-5 shrink-0" />
+          <span className={`whitespace-nowrap ${collapsed ? "sr-only" : ""}`}>
+            {isSigningOut ? "Signing out..." : "Sign out"}
           </span>
         </button>
       </div>

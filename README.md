@@ -162,3 +162,49 @@ npm run format:check  # Check formatting without changing files
 ```
 
 CI runs `npm run lint`, `npm run format:check` and `npm run build` (which also type-checks) on every pull request and push to `main`. All three must pass, so run them before pushing.
+
+#### Email sign-in
+
+The app uses Supabase Auth to send passwordless magic links. Entering an email on
+the sign-in page sends a link to an existing account. Clicking the link verifies the
+user and signs them in.
+
+Every account is an admin; volunteers never sign in. There is no public sign-up.
+A new account can only be created by invitation, in one of two ways:
+
+1. A signed-in admin sends it from the **Invite admin** page (`/admins`).
+2. A developer sends it from the Supabase dashboard (Authentication → Users → Add user → Send invitation).
+
+Both send the same Supabase invitation email. The account shows as unconfirmed in Supabase until
+the person clicks the link, which lands on `/auth/confirm`, confirms the account and signs them in.
+
+Supabase project settings this relies on:
+
+- **Allow new users to sign up** is off (Authentication → Sign In / Providers). The publishable
+  key is public, so without that setting anyone could call Supabase's sign-up API directly.
+  Invitations use the secret key, which isn't affected by that setting.
+- The **Invite user** email template (Authentication → Emails → Templates) links to `/auth/confirm`
+  with a token hash. The default `{{ .ConfirmationURL }}` link doesn't work with this app's
+  server-side sign-in. Replace the link in the template body with:
+
+  ```html
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
+    >Accept the invitation</a
+  >
+  ```
+
+- **Site URL** (Authentication → URL Configuration) is the production URL, since invitation links
+  are built from it. An invitation sent from your local app still links to production.
+
+Authentication uses the configured Supabase project even when the app is using
+a local Postgres database. Ask the project maintainer for the Supabase project
+URL and keys; do not commit credentials to the repository. Add them
+to `.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="<publishable-key>"
+# Server only, never prefix it with NEXT_PUBLIC_. Needed for the Invite admin page.
+# Supabase dashboard → Project Settings → API Keys → Secret keys
+SUPABASE_SECRET_KEY="<secret-key>"
+```
