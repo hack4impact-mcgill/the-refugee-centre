@@ -162,3 +162,19 @@ npm run format:check  # Check formatting without changing files
 ```
 
 CI runs `npm run lint`, `npm run format:check` and `npm run build` (which also type-checks) on every pull request and push to `main`. All three must pass, so run them before pushing.
+
+#### Email sign-in
+
+The app uses Supabase Auth to send passwordless magic links. Entering an email on
+the sign-in page sends a link to an existing account. The registration page can
+create a Supabase Auth account for a new email. Clicking the link verifies the
+user and signs them in.
+
+Authentication uses the configured Supabase project even when the app is using
+a local Postgres database. Ask the project maintainer for the Supabase project
+URL and publishable key; do not commit credentials to the repository. Add them
+to `.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="<publishable-key>"
