@@ -4,13 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BsPersonFill } from "react-icons/bs";
-import { FaCalendarAlt, FaHistory, FaSignOutAlt } from "react-icons/fa";
+import {
+  FaCalendarAlt,
+  FaHistory,
+  FaSignOutAlt,
+  FaUserShield,
+} from "react-icons/fa";
 import { signOut } from "@/lib/supabase/auth";
 
 const navItems = [
   { href: "/shifts", label: "Calendar", Icon: FaCalendarAlt },
   { href: "/volunteers", label: "Volunteers", Icon: BsPersonFill },
   { href: "/history", label: "History", Icon: FaHistory },
+  { href: "/admins", label: "Add admin", Icon: FaUserShield },
 ];
 
 const itemClassName =

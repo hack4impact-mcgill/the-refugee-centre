@@ -37,7 +37,6 @@ export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
       await sendMagicLink(
         email.trim(),
         `${window.location.origin}/auth/callback`,
-        false,
       );
       setMessage("Check your email for a sign-in link.");
       setIsError(false);

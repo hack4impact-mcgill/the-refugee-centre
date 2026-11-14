@@ -166,16 +166,29 @@ CI runs `npm run lint`, `npm run format:check` and `npm run build` (which also t
 #### Email sign-in
 
 The app uses Supabase Auth to send passwordless magic links. Entering an email on
-the sign-in page sends a link to an existing account. The registration page can
-create a Supabase Auth account for a new email. Clicking the link verifies the
+the sign-in page sends a link to an existing account. Clicking the link verifies the
 user and signs them in.
+
+Every account is an admin; volunteers never sign in. There is no public sign-up.
+A new account can only be created in one of two ways:
+
+1. A signed-in admin adds it from the **Add admin** page (`/admins`).
+2. A developer adds it in the Supabase dashboard (Authentication → Users → Add user).
+
+Self sign-up must stay turned off in the Supabase project (Authentication → Sign In / Providers →
+**Allow new users to sign up** off). The publishable key is public, so without that setting anyone
+could call Supabase's sign-up API directly. The `/admins` page uses the secret key, which isn't
+affected by that setting.
 
 Authentication uses the configured Supabase project even when the app is using
 a local Postgres database. Ask the project maintainer for the Supabase project
-URL and publishable key; do not commit credentials to the repository. Add them
+URL and keys; do not commit credentials to the repository. Add them
 to `.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="<publishable-key>"
+# Server only, never prefix it with NEXT_PUBLIC_. Needed for the Add admin page.
+# Supabase dashboard → Project Settings → API Keys → Secret keys
+SUPABASE_SECRET_KEY="<secret-key>"
 ```
