@@ -1,7 +1,7 @@
 "use client";
 
 import { sendMagicLink } from "@/lib/supabase/auth";
-import Link from "next/link";
+import Image from "next/image";
 import { type FormEvent, useState } from "react";
 
 export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
@@ -48,7 +48,14 @@ export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-white px-6 py-10">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-white px-6 py-10">
+      <Image
+        src="/trc-logo.svg"
+        alt="The Refugee Centre"
+        width={102}
+        height={90}
+        className="mb-6"
+      />
       <section className="w-full max-w-[488px] rounded-lg border border-sandstone-300 bg-sandstone-100 px-7 py-10 sm:px-8 sm:py-12">
         <h1 className="mb-8 text-center text-h4 text-navy-900">Sign in</h1>
 
@@ -89,13 +96,6 @@ export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
             {message}
           </p>
         </form>
-
-        <p className="mt-1 text-center text-body2 text-navy-800">
-          Need an account?{" "}
-          <Link href="/register" className="font-bold hover:underline">
-            Create an account
-          </Link>
-        </p>
       </section>
     </main>
   );
