@@ -13,9 +13,7 @@ export default function AdminsPage() {
           Invite an admin
         </h1>
         <p className="mb-8 text-center text-body2 text-navy-700">
-          We&apos;ll email them an invitation link. Their account stays
-          unconfirmed until they click it, then they&apos;re signed in with the
-          same access as you.
+          They&apos;ll get an email with an invitation link to the platform.
         </p>
         <NewAdminForm />
       </div>

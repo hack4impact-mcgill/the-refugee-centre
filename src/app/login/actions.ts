@@ -2,7 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { emailSchema, otpCodeSchema } from "@/lib/schemas/auth";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  getRequestOrigin,
+} from "@/lib/supabase/server";
 
 export type SignInState = {
   step: "email" | "code";
@@ -51,8 +54,11 @@ async function sendSignInEmail(
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    // Accounts are only created by invitation.
-    options: { shouldCreateUser: false },
+    options: {
+      // Accounts are only created by invitation.
+      shouldCreateUser: false,
+      emailRedirectTo: await getRequestOrigin(),
+    },
   });
 
   if (error) {

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { isAuthError } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { isSignedIn } from "@/lib/supabase/server";
+import { getRequestOrigin, isSignedIn } from "@/lib/supabase/server";
 
 export type InviteAdminState = {
   status: "idle" | "success" | "error";
@@ -46,7 +46,9 @@ export async function inviteAdmin(
 
   try {
     const supabase = createSupabaseAdminClient();
-    const { error } = await supabase.auth.admin.inviteUserByEmail(email);
+    const { error } = await supabase.auth.admin.inviteUserByEmail(email, {
+      redirectTo: await getRequestOrigin(),
+    });
 
     if (error) {
       if (

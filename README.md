@@ -190,14 +190,17 @@ Supabase project settings this relies on:
   key is public, so without that setting anyone could call Supabase's sign-up API directly.
   Invitations use the secret key, which isn't affected by that setting.
 - The **Magic Link** and **Invite user** email templates (Authentication → Emails → Templates)
-  link to `/auth/confirm` with `token_hash` and `type` (`email` or `invite`), and the Magic Link
-  template also shows the one-time code. The default `{{ .ConfirmationURL }}` link only works in
-  the browser that asked for the email, and is used up by email scanners.
+  link to `{{ .RedirectTo }}/auth/confirm` with `token_hash` and `type` (`email` or `invite`),
+  and the Magic Link template also shows the one-time code. The default `{{ .ConfirmationURL }}`
+  link only works in the browser that asked for the email, and is used up by email scanners.
 - **Email OTP Expiration** (Authentication → Sign In / Providers → Email) is how long links
   and codes last. Keep it short (around 15 minutes), since a numeric code is guessable
   in a way a link isn't.
-- **Site URL** (Authentication → URL Configuration) is the production URL, since email links
-  are built from it. A sign-in or invitation email sent from your local app still links to production.
+- **Redirect URLs** (Authentication → URL Configuration) list `http://localhost:3000`,
+  `http://localhost:3000/**` and the Vercel preview URLs. The app sends its own origin with each
+  email so the link opens the server that sent it, but Supabase only uses origins on this list.
+- **Site URL** (same page) is the production URL. Links use it when the sending server isn't in
+  Redirect URLs, and for invitations sent from the Supabase dashboard.
 
 Authentication uses the configured Supabase project even when the app is using
 a local Postgres database. Ask the project maintainer for the Supabase project
