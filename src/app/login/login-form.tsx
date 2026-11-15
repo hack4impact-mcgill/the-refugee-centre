@@ -1,76 +1,28 @@
 "use client";
 
-import { sendMagicLink } from "@/lib/supabase/auth";
-import Image from "next/image";
-import { type FormEvent, useState } from "react";
-
-function isAccountNotFound(error: unknown) {
-  return (
-    error instanceof Error && "code" in error && error.code === "otp_disabled"
-  );
-}
+import { useActionState } from "react";
+import { signIn, type SignInState } from "@/app/login/actions";
+import AuthCard, { inputClassName } from "@/components/auth-card";
+import SubmitButton from "@/components/submit-button";
 
 export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState(
-    hasAuthError
+  const [state, formAction] = useActionState(signIn, {
+    step: "email",
+    email: "",
+    status: hasAuthError ? "error" : "idle",
+    message: hasAuthError
       ? "That sign-in link is invalid or has expired. Request a new one."
       : "",
-  );
-  const [isError, setIsError] = useState(hasAuthError);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  } satisfies SignInState);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-    setIsError(false);
-
-    if (!email.trim()) {
-      setMessage("Please enter your email address.");
-      setIsError(true);
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      await sendMagicLink(
-        email.trim(),
-        `${window.location.origin}/auth/callback`,
-      );
-      setMessage("Check your email for a sign-in link.");
-      setIsError(false);
-    } catch (error) {
-      if (isAccountNotFound(error)) {
-        setMessage(
-          "No account exists for this email. Contact an administrator to get access.",
-        );
-      } else {
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : "Unable to sign in with Supabase right now.",
-        );
-      }
-      setIsError(true);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+  // React resets the form after each action, so a new key is needed for the
+  // inputs to pick up the returned values as their defaults.
+  const inputKey = `${state.step}:${state.status}:${state.email}`;
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-white px-6 py-10">
-      <Image
-        src="/trc-logo.svg"
-        alt="The Refugee Centre"
-        width={102}
-        height={90}
-        className="mb-6"
-      />
-      <section className="w-full max-w-[488px] rounded-lg border border-sandstone-300 bg-sandstone-100 px-7 py-10 sm:px-8 sm:py-12">
-        <h1 className="mb-8 text-center text-h4 text-navy-900">Sign in</h1>
-
-        <form className="space-y-6" onSubmit={handleSubmit}>
+    <AuthCard title="Sign in">
+      {state.step === "email" ? (
+        <form className="space-y-6" action={formAction}>
           <div>
             <label
               htmlFor="email"
@@ -79,35 +31,95 @@ export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
               Email
             </label>
             <input
+              key={inputKey}
               id="email"
               name="email"
               type="email"
               autoComplete="email"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              defaultValue={state.email}
               placeholder="Enter your email address"
-              className="w-full rounded-lg border border-sandstone-300 bg-white px-3 py-2 text-body1 text-navy-900 outline-none placeholder:text-sandstone-600 focus:border-navy-700 focus:ring-2 focus:ring-navy-300"
+              className={inputClassName}
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-navy-900 px-5 py-2.5 text-body1 text-white transition-colors hover:bg-navy-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-700 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isSubmitting ? "Sending link..." : "Email me a sign-in link"}
-          </button>
-          <p
-            aria-live="polite"
-            className={`min-h-5 text-center text-body2 ${
-              isError ? "text-red-700" : "text-green-700"
-            }`}
-          >
-            {message}
-          </p>
+          <SubmitButton name="intent" value="send" pendingLabel="Sending...">
+            Email me a sign-in link
+          </SubmitButton>
+          <Message state={state} />
         </form>
-      </section>
-    </main>
+      ) : (
+        <form className="space-y-6" action={formAction}>
+          <p className="text-center text-body2 text-navy-700">
+            We emailed a sign-in link and code to{" "}
+            <span className="font-semibold text-navy-900">{state.email}</span>.
+            Click the link, or enter the code to sign in on this device.
+          </p>
+          <input type="hidden" name="email" value={state.email} />
+          <div>
+            <label
+              htmlFor="code"
+              className="mb-2 block text-body2 text-navy-900"
+            >
+              Code
+            </label>
+            <input
+              key={inputKey}
+              id="code"
+              name="code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              maxLength={12}
+              placeholder="Enter the code from the email"
+              className={`${inputClassName} tracking-widest`}
+            />
+          </div>
+
+          {/* First submit button, so pressing Enter in the code field uses it. */}
+          <SubmitButton
+            name="intent"
+            value="verify"
+            pendingLabel="Signing in..."
+          >
+            Sign in
+          </SubmitButton>
+          <div className="flex items-center justify-between gap-4">
+            <SubmitButton
+              variant="link"
+              name="intent"
+              value="back"
+              formNoValidate
+            >
+              Use a different email
+            </SubmitButton>
+            <SubmitButton
+              variant="link"
+              name="intent"
+              value="send"
+              formNoValidate
+              pendingLabel="Sending..."
+            >
+              Send a new code
+            </SubmitButton>
+          </div>
+          <Message state={state} />
+        </form>
+      )}
+    </AuthCard>
+  );
+}
+
+function Message({ state }: { state: SignInState }) {
+  return (
+    <p
+      aria-live="polite"
+      className={`min-h-5 text-center text-body2 ${
+        state.status === "error" ? "text-red-700" : "text-green-700"
+      }`}
+    >
+      {state.message}
+    </p>
   );
 }

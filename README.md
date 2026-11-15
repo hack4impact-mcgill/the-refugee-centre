@@ -165,9 +165,14 @@ CI runs `npm run lint`, `npm run format:check` and `npm run build` (which also t
 
 #### Email sign-in
 
-The app uses Supabase Auth to send passwordless magic links. Entering an email on
-the sign-in page sends a link to an existing account. Clicking the link verifies the
-user and signs them in.
+The app uses Supabase Auth for passwordless sign-in. Entering an email on the sign-in
+page sends an existing account an email with a link and a one-time code:
+
+- The link opens `/auth/confirm`, and clicking **Continue** there signs in whichever
+  device opened it. Signing in waits for that click because email security scanners
+  open every link in an email, and would otherwise use up the one-time token.
+- The code is typed into the sign-in page, which signs in the device that asked for
+  the email. This is the one to use when reading email on a phone at a shared computer.
 
 Every account is an admin; volunteers never sign in. There is no public sign-up.
 A new account can only be created by invitation, in one of two ways:
@@ -176,22 +181,37 @@ A new account can only be created by invitation, in one of two ways:
 2. A developer sends it from the Supabase dashboard (Authentication → Users → Add user → Send invitation).
 
 Both send the same Supabase invitation email. The account shows as unconfirmed in Supabase until
-the person clicks the link, which lands on `/auth/confirm`, confirms the account and signs them in.
+the person clicks the link, which lands on `/auth/confirm`. Clicking **Accept invitation** there
+confirms the account and signs them in.
 
 Supabase project settings this relies on:
 
 - **Allow new users to sign up** is off (Authentication → Sign In / Providers). The publishable
   key is public, so without that setting anyone could call Supabase's sign-up API directly.
   Invitations use the secret key, which isn't affected by that setting.
-- The **Invite user** email template (Authentication → Emails → Templates) links to `/auth/confirm`
-  with a token hash. The default `{{ .ConfirmationURL }}` link doesn't work with this app's
-  server-side sign-in. Replace the link in the template body with:
+- The **Magic Link** and **Invite user** email templates (Authentication → Emails → Templates)
+  link to `/auth/confirm` with a token hash. The default `{{ .ConfirmationURL }}` link only
+  works in the browser that asked for the email, and is used up by email scanners. Replace
+  the link in the **Magic Link** template body with:
+
+  ```html
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email"
+    >Sign in</a
+  >
+  <p>Or enter this code on the sign-in page: <strong>{{ .Token }}</strong></p>
+  ```
+
+  And the link in the **Invite user** template body with:
 
   ```html
   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
     >Accept the invitation</a
   >
   ```
+
+- **Email OTP Expiration** (Authentication → Sign In / Providers → Email) is how long links
+  and codes last. Keep it short (around 15 minutes), since a numeric code is guessable
+  in a way a link isn't.
 
 - **Site URL** (Authentication → URL Configuration) is the production URL, since invitation links
   are built from it. An invitation sent from your local app still links to production.
