@@ -5,14 +5,12 @@ import { signIn, type SignInState } from "@/app/login/actions";
 import AuthCard, { inputClassName } from "@/components/auth-card";
 import SubmitButton from "@/components/submit-button";
 
-export default function LoginForm({ hasAuthError }: { hasAuthError: boolean }) {
+export default function LoginForm() {
   const [state, formAction] = useActionState(signIn, {
     step: "email",
     email: "",
-    status: hasAuthError ? "error" : "idle",
-    message: hasAuthError
-      ? "That sign-in link is invalid or has expired. Request a new one."
-      : "",
+    status: "idle",
+    message: "",
   } satisfies SignInState);
 
   // React resets the form after each action, so a new key is needed for the
