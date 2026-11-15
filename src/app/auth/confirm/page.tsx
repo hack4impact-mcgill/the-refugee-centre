@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { confirmEmailLink } from "@/app/auth/confirm/actions";
+import ConfirmForm, { LinkError } from "@/app/auth/confirm/confirm-form";
 import AuthCard from "@/components/auth-card";
-import SubmitButton from "@/components/submit-button";
 import { emailLinkSchema } from "@/lib/schemas/auth";
+import { isSignedIn } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Sign in | The Refugee Centre",
@@ -16,24 +15,24 @@ export default async function ConfirmPage({
   searchParams,
 }: PageProps<"/auth/confirm">) {
   const link = emailLinkSchema.safeParse(await searchParams);
-  if (!link.success) redirect("/login?authError=1");
+  const signedIn = await isSignedIn();
 
-  const isInvite = link.data.type === "invite";
+  if (!link.success) {
+    return (
+      <AuthCard title="Sign in">
+        <LinkError
+          message="This link is incomplete. Request a new one."
+          signedIn={signedIn}
+        />
+      </AuthCard>
+    );
+  }
 
   return (
-    <AuthCard title={isInvite ? "Accept your invitation" : "Sign in"}>
-      <form className="space-y-6" action={confirmEmailLink}>
-        <p className="text-center text-body2 text-navy-700">
-          {isInvite
-            ? "Confirm your account to sign in to The Refugee Centre."
-            : "Continue to finish signing in."}
-        </p>
-        <input type="hidden" name="token_hash" value={link.data.token_hash} />
-        <input type="hidden" name="type" value={link.data.type} />
-        <SubmitButton pendingLabel="Signing in...">
-          {isInvite ? "Accept invitation" : "Continue"}
-        </SubmitButton>
-      </form>
+    <AuthCard
+      title={link.data.type === "invite" ? "Accept your invitation" : "Sign in"}
+    >
+      <ConfirmForm link={link.data} signedIn={signedIn} />
     </AuthCard>
   );
 }

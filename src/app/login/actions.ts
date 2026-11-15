@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { emailSchema, otpCodeSchema } from "@/lib/schemas/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -48,19 +47,12 @@ async function sendSignInEmail(
   email: string,
   isResend: boolean,
 ): Promise<SignInState> {
-  const origin = (await headers()).get("origin");
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: {
-      // Accounts are only created by invitation.
-      shouldCreateUser: false,
-      // Only used by the default {{ .ConfirmationURL }} email template. Remove
-      // it along with /auth/callback once the Magic Link template links to
-      // /auth/confirm (see the README).
-      emailRedirectTo: origin ? `${origin}/auth/callback` : undefined,
-    },
+    // Accounts are only created by invitation.
+    options: { shouldCreateUser: false },
   });
 
   if (error) {
