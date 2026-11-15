@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
 import Sidebar from "@/components/sidebar";
+import { Toaster } from "@/components/toast";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full">
         <Sidebar />
         <main className="min-w-0 flex-1">{children}</main>
+        <Toaster />
       </body>
     </html>
   );

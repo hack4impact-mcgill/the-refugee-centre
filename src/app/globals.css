@@ -167,6 +167,16 @@
   --text-overline--font-weight: 500;
 }
 
+@theme {
+  --animate-toast-countdown: toast-countdown linear forwards;
+
+  @keyframes toast-countdown {
+    to {
+      transform: scaleX(0);
+    }
+  }
+}
+
 body {
   background: var(--color-sandstone-100);
   color: var(--color-navy-900);
