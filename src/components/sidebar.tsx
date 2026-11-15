@@ -28,7 +28,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname.startsWith("/auth/")) return null;
 
   async function handleSignOut() {
     setIsSigningOut(true);
