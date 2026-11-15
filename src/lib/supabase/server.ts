@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export async function createSupabaseServerClient() {
@@ -31,6 +31,13 @@ export async function isSignedIn() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getClaims();
   return Boolean(data?.claims);
+}
+
+// Passed as the redirect URL when sending an email, so its link opens the
+// server that sent it. Supabase only allows origins listed in the project's
+// Redirect URLs, and otherwise falls back to the Site URL.
+export async function getRequestOrigin() {
+  return (await headers()).get("origin") ?? undefined;
 }
 
 export function unauthorized() {
