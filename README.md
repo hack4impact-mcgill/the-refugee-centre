@@ -190,31 +190,14 @@ Supabase project settings this relies on:
   key is public, so without that setting anyone could call Supabase's sign-up API directly.
   Invitations use the secret key, which isn't affected by that setting.
 - The **Magic Link** and **Invite user** email templates (Authentication → Emails → Templates)
-  link to `/auth/confirm` with a token hash. The default `{{ .ConfirmationURL }}` link only
-  works in the browser that asked for the email, and is used up by email scanners. Replace
-  the link in the **Magic Link** template body with:
-
-  ```html
-  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email"
-    >Sign in</a
-  >
-  <p>Or enter this code on the sign-in page: <strong>{{ .Token }}</strong></p>
-  ```
-
-  And the link in the **Invite user** template body with:
-
-  ```html
-  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
-    >Accept the invitation</a
-  >
-  ```
-
+  link to `/auth/confirm` with `token_hash` and `type` (`email` or `invite`), and the Magic Link
+  template also shows the one-time code. The default `{{ .ConfirmationURL }}` link only works in
+  the browser that asked for the email, and is used up by email scanners.
 - **Email OTP Expiration** (Authentication → Sign In / Providers → Email) is how long links
   and codes last. Keep it short (around 15 minutes), since a numeric code is guessable
   in a way a link isn't.
-
-- **Site URL** (Authentication → URL Configuration) is the production URL, since invitation links
-  are built from it. An invitation sent from your local app still links to production.
+- **Site URL** (Authentication → URL Configuration) is the production URL, since email links
+  are built from it. A sign-in or invitation email sent from your local app still links to production.
 
 Authentication uses the configured Supabase project even when the app is using
 a local Postgres database. Ask the project maintainer for the Supabase project
