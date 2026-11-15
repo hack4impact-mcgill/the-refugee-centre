@@ -8,6 +8,7 @@ import {
   FaCalendarAlt,
   FaHistory,
   FaSignOutAlt,
+  FaUserCircle,
   FaUserShield,
 } from "react-icons/fa";
 import { signOut } from "@/lib/supabase/auth";
@@ -22,7 +23,7 @@ const navItems = [
 const itemClassName =
   "flex w-full items-center gap-3 rounded px-2 py-0.5 text-body2 text-navy-900 transition-colors hover:bg-sandstone-300";
 
-export default function Sidebar() {
+export default function Sidebar({ email }: { email?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
@@ -76,6 +77,17 @@ export default function Sidebar() {
 
       <div className="flex flex-col gap-4">
         <hr className="border-sandstone-400" />
+        {email && (
+          <p
+            title={email}
+            className="flex w-full items-center gap-3 px-2 py-0.5 text-body2 text-navy-700"
+          >
+            <FaUserCircle aria-hidden className="size-5 shrink-0" />
+            <span className={`truncate ${collapsed ? "sr-only" : ""}`}>
+              {email}
+            </span>
+          </p>
+        )}
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}

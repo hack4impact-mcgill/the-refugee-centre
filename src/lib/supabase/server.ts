@@ -33,6 +33,12 @@ export async function isSignedIn() {
   return Boolean(data?.claims);
 }
 
+export async function getCurrentUserEmail() {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.auth.getClaims();
+  return data?.claims.email;
+}
+
 // Passed as the redirect URL when sending an email, so its link opens the
 // server that sent it. Supabase only allows origins listed in the project's
 // Redirect URLs, and otherwise falls back to the Site URL.
