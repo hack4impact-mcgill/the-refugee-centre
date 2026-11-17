@@ -8,6 +8,7 @@ import {
   BsXCircleFill,
 } from "react-icons/bs";
 import { FaFilter } from "react-icons/fa";
+import { Language } from "@/generated/prisma/enums";
 
 type FilterField = "name" | "languages" | "positions";
 type VolunteerFilterMenuProps = {
@@ -21,19 +22,7 @@ const FILTER_FIELDS: { field: FilterField; label: string }[] = [
   { field: "positions", label: "Positions" },
 ];
 
-const LANGUAGES = [
-  "Acehnese",
-  "Acholi",
-  "Afar",
-  "Afrikaans",
-  "Akan",
-  "Albanian",
-  "Amharic",
-  "Arabic",
-  "Aramaic",
-  "English",
-  "French",
-];
+const LANGUAGES = Object.values(Language).sort((a, b) => a.localeCompare(b));
 
 const POSITIONS = ["Receptionist", "Portal Worker"];
 
