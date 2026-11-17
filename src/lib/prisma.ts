@@ -3,24 +3,24 @@ import "server-only";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
-function withoutSslMode(connectionString: string) {
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+function adapterOptions(connectionString: string) {
   const url = new URL(connectionString);
   url.searchParams.delete("sslmode");
-  return url.toString();
+  return {
+    connectionString: url.toString(),
+    ssl: LOCAL_HOSTS.has(url.hostname) ? false : { rejectUnauthorized: false },
+  };
 }
 
 function createPrismaClient() {
-  // Supabase's transaction pooler, set by the Vercel integration. Serverless
-  // functions open many short-lived connections, which a pooler absorbs.
+  // Locally: the Docker Postgres. On Vercel: Supabase's transaction pooler
   const connectionString = process.env.POSTGRES_PRISMA_URL;
   if (!connectionString) {
     throw new Error("POSTGRES_PRISMA_URL is not set");
   }
-  const adapter = new PrismaPg({
-    connectionString: withoutSslMode(connectionString),
-    // Encrypt the connection without verifying Supabase's certificate chain.
-    ssl: { rejectUnauthorized: false },
-  });
+  const adapter = new PrismaPg(adapterOptions(connectionString));
   return new PrismaClient({ adapter });
 }
 

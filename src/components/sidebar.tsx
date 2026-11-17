@@ -2,22 +2,47 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BsPersonFill } from "react-icons/bs";
-import { FaCalendarAlt, FaHistory } from "react-icons/fa";
+import {
+  FaCalendarAlt,
+  FaHistory,
+  FaSignOutAlt,
+  FaUserCircle,
+  FaUserShield,
+} from "react-icons/fa";
+import { signOut } from "@/lib/supabase/auth";
 
 const navItems = [
-  { href: "/shifts", label: "Shift Management", Icon: FaCalendarAlt },
+  { href: "/shifts", label: "Calendar", Icon: FaCalendarAlt },
   { href: "/volunteers", label: "Volunteers", Icon: BsPersonFill },
   { href: "/history", label: "History", Icon: FaHistory },
+  { href: "/admins", label: "Invite admin", Icon: FaUserShield },
 ];
 
 const itemClassName =
   "flex w-full items-center gap-3 rounded px-2 py-0.5 text-body2 text-navy-900 transition-colors hover:bg-sandstone-300";
 
-export default function Sidebar() {
+export default function Sidebar({ email }: { email?: string }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  if (pathname === "/login" || pathname.startsWith("/auth/")) return null;
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      window.alert("Unable to sign out right now. Please try again.");
+      setIsSigningOut(false);
+    }
+  }
 
   return (
     <aside
@@ -52,6 +77,17 @@ export default function Sidebar() {
 
       <div className="flex flex-col gap-4">
         <hr className="border-sandstone-400" />
+        {email && (
+          <p
+            title={email}
+            className="flex w-full items-center gap-3 px-2 py-0.5 text-body2 text-navy-700"
+          >
+            <FaUserCircle aria-hidden className="size-5 shrink-0" />
+            <span className={`truncate ${collapsed ? "sr-only" : ""}`}>
+              {email}
+            </span>
+          </p>
+        )}
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
@@ -65,6 +101,18 @@ export default function Sidebar() {
           </span>
           <span className={`whitespace-nowrap ${collapsed ? "sr-only" : ""}`}>
             {collapsed ? "Expand" : "Collapse"}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+          title={collapsed ? "Sign out" : undefined}
+          className={`${itemClassName} cursor-pointer disabled:cursor-not-allowed disabled:opacity-70`}
+        >
+          <FaSignOutAlt aria-hidden className="size-5 shrink-0" />
+          <span className={`whitespace-nowrap ${collapsed ? "sr-only" : ""}`}>
+            {isSigningOut ? "Signing out..." : "Sign out"}
           </span>
         </button>
       </div>

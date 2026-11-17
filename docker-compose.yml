@@ -1,0 +1,25 @@
+# Local Postgres for development
+# Start: `npm run db:up`
+# Stop: `npm run db:down`
+# Data persistence:  `trc-pgdata` volume until `docker compose down -v`
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: trc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: trc
+    ports:
+      - "5432:5432"
+    volumes:
+      - trc-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d trc"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  trc-pgdata:
