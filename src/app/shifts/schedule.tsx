@@ -19,19 +19,28 @@ import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
 import { toast } from "@/components/toast";
+import { browserTimeZone } from "@/lib/recurrence";
 import {
   EMPTY_SHIFT_DETAILS,
+  describeRepeat,
   detailsFromEvent,
   detailsOf,
   eventOf,
   inputOf,
   inputOfEvent,
+  repeatChanged,
+  repeatOf,
   shiftEventClass,
   summarizeShift,
   type ShiftDraft,
   type ShiftEvent,
 } from "@/lib/shifts";
-import type { ShiftInput, ShiftRecord } from "@/lib/schemas/shift";
+import type {
+  RecurrenceInput,
+  SeriesScope,
+  ShiftInput,
+  ShiftRecord,
+} from "@/lib/schemas/shift";
 import ShiftPopup from "./shift-popup";
 
 import "@fullcalendar/react/skeleton.css";
@@ -62,18 +71,35 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
   ssr: false,
 });
 
-async function saveShift(input: ShiftInput, id?: string) {
+/**
+ * For a shift in a series, `scope` is which of its shifts the edit applies
+ * to. `recurrence` is only sent when the repeat rule changed (null: stop
+ * repeating).
+ */
+type SeriesChange = {
+  scope?: SeriesScope;
+  recurrence?: RecurrenceInput | null;
+};
+
+async function saveShift(
+  input: ShiftInput,
+  id?: string,
+  change?: SeriesChange,
+) {
   const response = await fetch(id ? `/api/shifts/${id}` : "/api/shifts", {
     method: id ? "PATCH" : "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, ...change }),
   });
   if (!response.ok) throw new Error(await response.text());
   return eventOf(await response.json());
 }
 
-async function removeShift(id: string) {
-  const response = await fetch(`/api/shifts/${id}`, { method: "DELETE" });
+async function removeShift(id: string, scope: SeriesScope = "this") {
+  const params = new URLSearchParams({ scope });
+  const response = await fetch(`/api/shifts/${id}?${params}`, {
+    method: "DELETE",
+  });
   if (!response.ok && response.status !== 404) {
     throw new Error(await response.text());
   }
@@ -89,8 +115,10 @@ export default function Schedule() {
   const [pending, setPending] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loadController = useRef<AbortController | null>(null);
+  const loadedRange = useRef<DatesSetInfo | null>(null);
 
   async function loadShifts(info: DatesSetInfo) {
+    loadedRange.current = info;
     loadController.current?.abort();
     const controller = new AbortController();
     loadController.current = controller;
@@ -112,6 +140,11 @@ export default function Schedule() {
       console.error(err);
       setError("Couldn't load shifts.");
     }
+  }
+
+  /** Reloads the shown dates, after a change to more than one shift */
+  async function reloadShifts() {
+    if (loadedRange.current) await loadShifts(loadedRange.current);
   }
 
   // A brand new shift isn't in `shifts` yet, so it is appended here from the
@@ -153,6 +186,7 @@ export default function Schedule() {
       allDay: info.allDay,
       isNew: true,
       revert: null,
+      repeat: null,
     });
     info.view.calendar.unselect();
   }
@@ -160,9 +194,10 @@ export default function Schedule() {
   function handleShiftClick(info: EventClickInfo) {
     const { event } = info;
     const start = event.start ?? new Date();
+    const details = detailsFromEvent(event.extendedProps);
 
     setDraft({
-      ...detailsFromEvent(event.extendedProps),
+      ...details,
       id: event.id,
       title: event.title,
       start,
@@ -170,6 +205,7 @@ export default function Schedule() {
       allDay: event.allDay,
       isNew: false,
       revert: null,
+      repeat: repeatOf(details.recurrence),
     });
   }
 
@@ -180,11 +216,12 @@ export default function Schedule() {
     setDraft((current) => {
       const sameShift = current?.id === event.id;
       const isNew = sameShift && current.isNew;
+      const details = sameShift
+        ? detailsOf(current)
+        : detailsFromEvent(event.extendedProps);
 
       return {
-        ...(sameShift
-          ? detailsOf(current)
-          : detailsFromEvent(event.extendedProps)),
+        ...details,
         id: event.id,
         title: event.title,
         start,
@@ -192,6 +229,7 @@ export default function Schedule() {
         allDay: event.allDay,
         isNew,
         revert: isNew ? null : (sameShift && current.revert) || info.revert,
+        repeat: sameShift ? current.repeat : repeatOf(details.recurrence),
       };
     });
   }
@@ -226,19 +264,39 @@ export default function Schedule() {
     }
   }
 
-  async function saveDraft() {
+  async function saveDraft(scope: SeriesScope = "this") {
     if (!draft || pending) return;
     setPending("save");
     const previous = shifts.find((shift) => shift.id === draft.id);
+    const ruleChanged = repeatChanged(draft);
+    const recurrence = ruleChanged
+      ? draft.repeat && { ...draft.repeat, timeZone: browserTimeZone() }
+      : undefined;
     try {
       const saved = await saveShift(
         inputOf(draft),
         draft.isNew ? undefined : draft.id,
+        draft.isNew
+          ? { recurrence: recurrence ?? undefined }
+          : { scope, recurrence },
       );
       setDraft(null);
       setError(null);
 
-      if (draft.isNew) {
+      if (draft.isNew && draft.repeat) {
+        await reloadShifts();
+        toast.success("Repeating shift created", {
+          description: `${summarizeShift(saved)} · ${describeRepeat(draft.repeat, draft.start)}`,
+          action: {
+            label: "Undo",
+            onClick: () =>
+              undo(async () => {
+                await removeShift(saved.id, "all");
+                await reloadShifts();
+              }, "Shifts removed"),
+          },
+        });
+      } else if (draft.isNew) {
         addShift(saved);
         toast.success("Shift created", {
           description: summarizeShift(saved),
@@ -251,6 +309,17 @@ export default function Schedule() {
               }, "Shift removed"),
           },
         });
+      } else if (ruleChanged || (draft.recurrence && scope !== "this")) {
+        // Several shifts changed, some with new ids: reload rather than undo.
+        await reloadShifts();
+        toast.success(
+          scope === "all"
+            ? "All shifts in the series updated"
+            : scope === "following"
+              ? "This and following shifts updated"
+              : "Shift updated",
+          { description: summarizeShift(saved) },
+        );
       } else {
         replaceShift(saved);
         toast.success("Shift updated", {
@@ -274,26 +343,41 @@ export default function Schedule() {
     }
   }
 
-  async function deleteDraft() {
+  async function deleteDraft(scope: SeriesScope = "this") {
     if (!draft || draft.isNew || pending) return;
     setPending("delete");
     const deleted = shifts.find((shift) => shift.id === draft.id);
     try {
-      await removeShift(draft.id);
-      dropShift(draft.id);
+      await removeShift(draft.id, scope);
       setDraft(null);
       setError(null);
 
+      if (draft.recurrence && scope !== "this") {
+        await reloadShifts();
+        toast.success(
+          scope === "all"
+            ? "All shifts in the series deleted"
+            : "This and following shifts deleted",
+          { description: deleted && summarizeShift(deleted) },
+        );
+        return;
+      }
+
+      dropShift(draft.id);
       toast.success("Shift deleted", {
         description: deleted && summarizeShift(deleted),
-        // Undo saves it again as a new shift, with a new id.
-        action: deleted && {
-          label: "Undo",
-          onClick: () =>
-            undo(async () => {
-              addShift(await saveShift(inputOfEvent(deleted)));
-            }, "Shift restored"),
-        },
+        // Undo saves it again as a new one-off shift, with a new id, so it's
+        // only offered for shifts that weren't part of a series.
+        action:
+          deleted && !draft.recurrence
+            ? {
+                label: "Undo",
+                onClick: () =>
+                  undo(async () => {
+                    addShift(await saveShift(inputOfEvent(deleted)));
+                  }, "Shift restored"),
+              }
+            : undefined,
       });
     } catch (err) {
       console.error(err);
