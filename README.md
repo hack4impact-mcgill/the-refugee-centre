@@ -162,3 +162,55 @@ npm run format:check  # Check formatting without changing files
 ```
 
 CI runs `npm run lint`, `npm run format:check` and `npm run build` (which also type-checks) on every pull request and push to `main`. All three must pass, so run them before pushing.
+
+#### Email sign-in
+
+The app uses Supabase Auth for passwordless sign-in. Entering an email on the sign-in
+page sends an existing account an email with a link and a one-time code:
+
+- The link opens `/auth/confirm`, and clicking **Continue** there signs in whichever
+  device opened it. Signing in waits for that click because email security scanners
+  open every link in an email, and would otherwise use up the one-time token.
+- The code is typed into the sign-in page, which signs in the device that asked for
+  the email. This is the one to use when reading email on a phone at a shared computer.
+
+Every account is an admin; volunteers never sign in. There is no public sign-up.
+A new account can only be created by invitation, in one of two ways:
+
+1. A signed-in admin sends it from the **Invite admin** page (`/admins`).
+2. A developer sends it from the Supabase dashboard (Authentication → Users → Add user → Send invitation).
+
+Both send the same Supabase invitation email. The account shows as unconfirmed in Supabase until
+the person clicks the link, which lands on `/auth/confirm`. Clicking **Accept invitation** there
+confirms the account and signs them in.
+
+Supabase project settings this relies on:
+
+- **Allow new users to sign up** is off (Authentication → Sign In / Providers). The publishable
+  key is public, so without that setting anyone could call Supabase's sign-up API directly.
+  Invitations use the secret key, which isn't affected by that setting.
+- The **Magic Link** and **Invite user** email templates (Authentication → Emails → Templates)
+  link to `{{ .RedirectTo }}/auth/confirm` with `token_hash` and `type` (`email` or `invite`),
+  and the Magic Link template also shows the one-time code. The default `{{ .ConfirmationURL }}`
+  link only works in the browser that asked for the email, and is used up by email scanners.
+- **Email OTP Expiration** (Authentication → Sign In / Providers → Email) is how long links
+  and codes last. Keep it short (around 15 minutes), since a numeric code is guessable
+  in a way a link isn't.
+- **Redirect URLs** (Authentication → URL Configuration) list `http://localhost:3000`,
+  `http://localhost:3000/**` and the Vercel preview URLs. The app sends its own origin with each
+  email so the link opens the server that sent it, but Supabase only uses origins on this list.
+- **Site URL** (same page) is the production URL. Links use it when the sending server isn't in
+  Redirect URLs, and for invitations sent from the Supabase dashboard.
+
+Authentication uses the configured Supabase project even when the app is using
+a local Postgres database. Ask the project maintainer for the Supabase project
+URL and keys; do not commit credentials to the repository. Add them
+to `.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="<publishable-key>"
+# Server only, never prefix it with NEXT_PUBLIC_. Needed for the Invite admin page.
+# Supabase dashboard → Project Settings → API Keys → Secret keys
+SUPABASE_SECRET_KEY="<secret-key>"
+```

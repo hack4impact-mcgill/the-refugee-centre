@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { shiftIdSchema, shiftInputSchema } from "@/lib/schemas/shift";
+import { isSignedIn, unauthorized } from "@/lib/supabase/server";
 
 const NOT_FOUND = { error: "Shift not found" };
 
@@ -11,6 +12,8 @@ export async function PATCH(
   request: NextRequest,
   ctx: RouteContext<"/api/shifts/[id]">,
 ) {
+  if (!(await isSignedIn())) return unauthorized();
+
   const { id } = await ctx.params;
   if (!shiftIdSchema.safeParse(id).success) {
     return Response.json(NOT_FOUND, { status: 404 });
@@ -48,6 +51,8 @@ export async function DELETE(
   _request: NextRequest,
   ctx: RouteContext<"/api/shifts/[id]">,
 ) {
+  if (!(await isSignedIn())) return unauthorized();
+
   const { id } = await ctx.params;
   if (!shiftIdSchema.safeParse(id).success) {
     return Response.json(NOT_FOUND, { status: 404 });
