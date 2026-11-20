@@ -1,6 +1,10 @@
 import type { EventInput } from "@fullcalendar/react";
 import type { Language, ShiftLocation } from "@/generated/prisma/enums";
+import { defaultEndDate, type RepeatRule } from "@/lib/recurrence";
 import type { ShiftInput, ShiftRecord } from "@/lib/schemas/shift";
+
+/** The rule of the series a shift belongs to, as saved */
+export type SavedRecurrence = RepeatRule & { id: string };
 
 /** Saved in extendedProps */
 export type ShiftDetails = {
@@ -8,6 +12,8 @@ export type ShiftDetails = {
   address: string;
   requiredLanguages: Language[];
   preferredLanguages: Language[];
+  volunteersNeeded: number;
+  recurrence: SavedRecurrence | null;
 };
 
 export const EMPTY_SHIFT_DETAILS: ShiftDetails = {
@@ -15,6 +21,8 @@ export const EMPTY_SHIFT_DETAILS: ShiftDetails = {
   address: "",
   requiredLanguages: [],
   preferredLanguages: [],
+  volunteersNeeded: 1,
+  recurrence: null,
 };
 
 export type ShiftDraft = ShiftDetails & {
@@ -25,11 +33,17 @@ export type ShiftDraft = ShiftDetails & {
   allDay: boolean;
   isNew: boolean;
   revert: (() => void) | null;
+  /** How the shift should repeat, as edited in the popup (null: it doesn't) */
+  repeat: RepeatRule | null;
 };
 
 export function inputOf(draft: ShiftDraft): ShiftInput {
   return {
-    ...detailsOf(draft),
+    location: draft.location,
+    address: draft.address,
+    requiredLanguages: draft.requiredLanguages,
+    preferredLanguages: draft.preferredLanguages,
+    volunteersNeeded: draft.volunteersNeeded,
     title: draft.title.trim() || "Untitled shift",
     startTime: draft.start.toISOString(),
     endTime: draft.end.toISOString(),
@@ -47,11 +61,21 @@ export type ShiftEvent = EventInput & {
 };
 
 export function eventOf(shift: ShiftRecord): ShiftEvent {
+  const { recurrence } = shift;
   const details: ShiftDetails = {
     location: shift.location,
     address: shift.address ?? "",
     requiredLanguages: shift.requiredLanguages,
     preferredLanguages: shift.preferredLanguages,
+    volunteersNeeded: shift.volunteersNeeded,
+    recurrence: recurrence && {
+      id: recurrence.id,
+      frequency: recurrence.frequency,
+      interval: recurrence.interval,
+      byWeekday: recurrence.byWeekday,
+      // A `date` column comes back as midnight UTC.
+      endDate: recurrence.endDate.slice(0, 10),
+    },
   };
   return {
     id: shift.id,
@@ -65,13 +89,100 @@ export function eventOf(shift: ShiftRecord): ShiftEvent {
 }
 
 export function inputOfEvent(event: ShiftEvent): ShiftInput {
+  const details = event.extendedProps;
   return {
-    ...event.extendedProps,
+    location: details.location,
+    address: details.address,
+    requiredLanguages: details.requiredLanguages,
+    preferredLanguages: details.preferredLanguages,
+    volunteersNeeded: details.volunteersNeeded,
     title: event.title,
     startTime: event.start,
     endTime: event.end,
     allDay: event.allDay,
   };
+}
+
+/** The editable copy of a saved series' rule */
+export function repeatOf(
+  recurrence: SavedRecurrence | null,
+): RepeatRule | null {
+  if (!recurrence) return null;
+  const { frequency, interval, byWeekday, endDate } = recurrence;
+  return { frequency, interval, byWeekday, endDate };
+}
+
+export function sameRule(a: RepeatRule | null, b: RepeatRule | null) {
+  if (!a || !b) return a === b;
+  return (
+    a.frequency === b.frequency &&
+    a.interval === b.interval &&
+    a.endDate === b.endDate &&
+    [...a.byWeekday].sort().join() === [...b.byWeekday].sort().join()
+  );
+}
+
+/** Whether the popup changed how the shift repeats */
+export function repeatChanged(draft: ShiftDraft) {
+  return !sameRule(draft.repeat, repeatOf(draft.recurrence));
+}
+
+const WEEKDAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+const WORK_WEEK = [1, 2, 3, 4, 5];
+
+/** ISO weekday (1 = Monday … 7 = Sunday) of a local date */
+function isoWeekday(date: Date) {
+  return date.getDay() || 7;
+}
+
+/** E.g. "Weekly on Tuesday", for a series whose first shift is on `start` */
+export function describeRepeat(rule: RepeatRule, start: Date) {
+  const every = (unit: string) =>
+    rule.interval === 1 ? null : `Every ${rule.interval} ${unit}s`;
+  switch (rule.frequency) {
+    case "Daily":
+      return every("day") ?? "Daily";
+    case "Weekly": {
+      const days = rule.byWeekday.length
+        ? [...rule.byWeekday].sort()
+        : [isoWeekday(start)];
+      if (rule.interval === 1 && days.join() === WORK_WEEK.join()) {
+        return "Every weekday (Mon–Fri)";
+      }
+      const names = days.map((day) => WEEKDAYS[day - 1]).join(", ");
+      return `${every("week") ?? "Weekly"} on ${names}`;
+    }
+    case "Monthly":
+      return `${every("month") ?? "Monthly"} on day ${start.getDate()}`;
+  }
+}
+
+/**
+ * The repeat dropdown's choices for a shift starting on `start`: "Does not
+ * repeat" (null), then the presets. A saved rule none of them matches (e.g.
+ * weekly on another day, after the shift was moved) is listed too.
+ */
+export function repeatChoices(draft: ShiftDraft): (RepeatRule | null)[] {
+  const endDate = draft.repeat?.endDate ?? defaultEndDate(draft.start);
+  const rule = (frequency: RepeatRule["frequency"], byWeekday: number[] = []) =>
+    ({ frequency, interval: 1, byWeekday, endDate }) satisfies RepeatRule;
+  const presets = [
+    rule("Daily"),
+    rule("Weekly", [isoWeekday(draft.start)]),
+    rule("Weekly", WORK_WEEK),
+    rule("Monthly"),
+  ];
+  const current = draft.repeat;
+  const isPreset = presets.some((preset) => sameRule(preset, current));
+  return [null, ...(current && !isPreset ? [current] : []), ...presets];
 }
 
 /** Used in shift pop up to find event on the page for anchoring */
@@ -86,6 +197,8 @@ export function detailsOf(draft: ShiftDraft): ShiftDetails {
     address: draft.address,
     requiredLanguages: draft.requiredLanguages,
     preferredLanguages: draft.preferredLanguages,
+    volunteersNeeded: draft.volunteersNeeded,
+    recurrence: draft.recurrence,
   };
 }
 

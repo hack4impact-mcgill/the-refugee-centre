@@ -43,17 +43,49 @@ enum ShiftLocation {
 }
 
 model Shift {
-  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   title              String
-  startTime          DateTime      @map("start_time") @db.Timestamptz(6)
-  endTime            DateTime      @map("end_time") @db.Timestamptz(6)
-  allDay             Boolean       @default(false) @map("all_day")
-  location           ShiftLocation @default(TRC)
+  startTime          DateTime        @map("start_time") @db.Timestamptz(6)
+  endTime            DateTime        @map("end_time") @db.Timestamptz(6)
+  allDay             Boolean         @default(false) @map("all_day")
+  location           ShiftLocation   @default(TRC)
   address            String?
-  requiredLanguages  Language[]    @map("required_languages")
-  preferredLanguages Language[]    @map("preferred_languages")
+  requiredLanguages  Language[]      @map("required_languages")
+  preferredLanguages Language[]      @map("preferred_languages")
+  volunteersNeeded   Int             @default(1) @map("volunteers_needed")
+  // Null for a one-off shift. Deleting the series deletes its shifts.
+  recurrenceId       String?         @map("recurrence_id") @db.Uuid
+  recurrence         RecurringShift? @relation(fields: [recurrenceId], references: [id], onDelete: Cascade)
 
   @@index([startTime])
+  @@index([recurrenceId, startTime])
   @@map("shifts")
+}
+
+enum RecurrenceFrequency {
+  Daily
+  Weekly
+  Monthly
+
+  @@map("recurrence_frequency")
+}
+
+/// How a series of shifts repeats. Each shift in it is a full row in `shifts`
+/// with its own title, location, languages, etc.; this only holds the rule.
+model RecurringShift {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  frequency RecurrenceFrequency
+  /// Every N days, weeks or months
+  interval  Int                 @default(1)
+  /// ISO weekdays (1 = Monday … 7 = Sunday) for Weekly. Empty otherwise.
+  byWeekday Int[]               @map("by_weekday") @db.SmallInt
+  /// Date of the first shift
+  startDate DateTime            @map("start_date") @db.Date
+  /// Date of the last possible shift (inclusive)
+  endDate   DateTime            @map("end_date") @db.Date
+  shifts    Shift[]
+
+  @@map("recurring_shifts")
 }
