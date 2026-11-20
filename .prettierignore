@@ -9,3 +9,7 @@ src/generated/
 
 # Lockfiles
 package-lock.json
+
+# Supabase email templates - hand-formatted HTML for email clients (Outlook conditional
+# comments, table layout). Pasted into the Supabase dashboard as-is.
+supabase/templates/
