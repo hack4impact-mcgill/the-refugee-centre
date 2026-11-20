@@ -26,7 +26,7 @@ export default function RepeatPicker({
   );
   const { repeat } = draft;
 
-  const firstDate = plainDateOf(draft.start, browserTimeZone());
+  const firstDate = plainDateOf(draft.start);
   const lastDate = firstDate.add({ years: MAX_SERIES_YEARS });
 
   return (
