@@ -1,11 +1,7 @@
 "use client";
 
 import { Temporal } from "temporal-polyfill";
-import {
-  MAX_SERIES_YEARS,
-  browserTimeZone,
-  plainDateOf,
-} from "@/lib/recurrence";
+import { MAX_SERIES_YEARS, plainDateOf } from "@/lib/recurrence";
 import {
   describeRepeat,
   repeatChoices,

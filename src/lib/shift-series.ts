@@ -12,6 +12,7 @@ import {
   plainDateOf,
   seriesDates,
   timesOnDate,
+  TIME_ZONE,
   toDbDate,
 } from "@/lib/recurrence";
 import type { Recurrence, SeriesScope, ShiftFields } from "@/lib/schemas/shift";
@@ -47,11 +48,9 @@ function fieldsOf(shift: Shift): ShiftFields {
   };
 }
 
-/** The date a shift falls on, the day before, in the series' time zone */
-function dayBefore(shift: Shift, series: RecurringShift) {
-  return toDbDate(
-    plainDateOf(shift.startTime, series.timeZone).subtract({ days: 1 }),
-  );
+/** The date a shift falls on, the day before */
+function dayBefore(shift: Shift) {
+  return toDbDate(plainDateOf(shift.startTime).subtract({ days: 1 }));
 }
 
 /**
@@ -59,7 +58,7 @@ function dayBefore(shift: Shift, series: RecurringShift) {
  * creates a copy of `anchor` for each of the rule's later dates.
  */
 async function startSeries(tx: Tx, anchor: Shift, rule: Recurrence) {
-  const first = plainDateOf(anchor.startTime, rule.timeZone);
+  const first = plainDateOf(anchor.startTime);
   const problem = endDateProblem(first, rule.endDate);
   if (problem) throw new SeriesError(problem);
 
@@ -70,7 +69,6 @@ async function startSeries(tx: Tx, anchor: Shift, rule: Recurrence) {
       byWeekday: rule.frequency === "Weekly" ? rule.byWeekday : [],
       startDate: toDbDate(first),
       endDate: toDbDate(rule.endDate),
-      timeZone: rule.timeZone,
     },
   });
   await tx.shift.update({
@@ -84,7 +82,7 @@ async function startSeries(tx: Tx, anchor: Shift, rule: Recurrence) {
       .slice(1)
       .map((date) => ({
         ...fields,
-        ...timesOnDate(fields, date, rule.timeZone),
+        ...timesOnDate(fields, date),
         recurrenceId: series.id,
       })),
   });
@@ -132,9 +130,8 @@ async function updateSeries(
     await tx.shift.updateMany({ where: others, data: changed });
   }
 
-  const timeZone = series.timeZone;
-  const next = clockTimes({ startTime, endTime }, timeZone);
-  const previous = clockTimes(current, timeZone);
+  const next = clockTimes({ startTime, endTime });
+  const previous = clockTimes(current);
   if (
     next.start !== previous.start ||
     next.end !== previous.end ||
@@ -144,10 +141,10 @@ async function updateSeries(
     // row's old start_time, so each shift keeps its own date.
     await tx.$executeRaw`
       UPDATE shifts SET
-        start_time = ((start_time AT TIME ZONE ${timeZone})::date
-          + ${next.start}::time) AT TIME ZONE ${timeZone},
-        end_time = ((start_time AT TIME ZONE ${timeZone})::date
-          + ${next.days}::int + ${next.end}::time) AT TIME ZONE ${timeZone}
+        start_time = ((start_time AT TIME ZONE ${TIME_ZONE})::date
+          + ${next.start}::time) AT TIME ZONE ${TIME_ZONE},
+        end_time = ((start_time AT TIME ZONE ${TIME_ZONE})::date
+          + ${next.days}::int + ${next.end}::time) AT TIME ZONE ${TIME_ZONE}
       WHERE recurrence_id = ${series.id}::uuid
         AND id <> ${current.id}::uuid
         ${scope === "following" ? Prisma.sql`AND start_time >= ${current.startTime}` : Prisma.empty}`;
@@ -196,11 +193,7 @@ async function changeRule(
       ? fields
       : {
           ...fields,
-          ...timesOnDate(
-            fields,
-            plainDateOf(anchor.startTime, series.timeZone),
-            series.timeZone,
-          ),
+          ...timesOnDate(fields, plainDateOf(anchor.startTime)),
         };
 
   await tx.shift.deleteMany({
@@ -221,7 +214,7 @@ async function changeRule(
   } else {
     await tx.recurringShift.update({
       where: { id: series.id },
-      data: { endDate: dayBefore(anchor, series) },
+      data: { endDate: dayBefore(anchor) },
     });
   }
 
@@ -291,7 +284,7 @@ export function deleteShift(id: string, scope: SeriesScope) {
       });
       await tx.recurringShift.update({
         where: { id: series.id },
-        data: { endDate: dayBefore(current, series) },
+        data: { endDate: dayBefore(current) },
       });
     }
 

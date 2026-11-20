@@ -36,24 +36,14 @@ const shiftFields = z.object({
   volunteersNeeded: z.int().min(1).max(MAX_VOLUNTEERS_NEEDED).default(1),
 });
 
-function isTimeZone(timeZone: string) {
-  try {
-    new Intl.DateTimeFormat(undefined, { timeZone });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** How a new or changed series repeats */
 export const recurrenceInputSchema = z.object({
   frequency: z.enum(RecurrenceFrequency),
   interval: z.int().min(1).max(12).default(1),
   // ISO weekdays, 1 = Monday … 7 = Sunday. Only used by Weekly.
   byWeekday: z.array(z.int().min(1).max(7)).max(7).default([]),
-  // Inclusive, as YYYY-MM-DD in `timeZone`
+  // Inclusive, as YYYY-MM-DD
   endDate: z.iso.date(),
-  timeZone: z.string().refine(isTimeZone, "unknown time zone"),
 });
 
 /** Which shifts of a series a change or delete applies to */

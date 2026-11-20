@@ -3,7 +3,7 @@ import type { RecurrenceFrequency } from "@/generated/prisma/enums";
 
 /**
  * Date logic for repeating shifts, shared by the popup and the API. Dates are
- * worked out as wall-clock dates in the series' time zone, so a 9am shift
+ * worked out as wall-clock dates in the centre's time zone, so a 9am shift
  * stays at 9am across daylight saving changes.
  */
 
@@ -18,18 +18,17 @@ export type RepeatRule = {
   endDate: string;
 };
 
-export function browserTimeZone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
+/** The time zone every shift's wall-clock times are in */
+export const TIME_ZONE = "America/Toronto";
 
-export function zonedOf(date: Date, timeZone: string) {
+export function zonedOf(date: Date) {
   return Temporal.Instant.fromEpochMilliseconds(
     date.getTime(),
-  ).toZonedDateTimeISO(timeZone);
+  ).toZonedDateTimeISO(TIME_ZONE);
 }
 
-export function plainDateOf(date: Date, timeZone: string) {
-  return zonedOf(date, timeZone).toPlainDate();
+export function plainDateOf(date: Date) {
+  return zonedOf(date).toPlainDate();
 }
 
 /** A `date` column value (Prisma reads and writes them as UTC midnight) */
@@ -44,8 +43,8 @@ export function fromDbDate(date: Date | string) {
 }
 
 /** The default end date: a year after the first shift */
-export function defaultEndDate(start: Date, timeZone = browserTimeZone()) {
-  return plainDateOf(start, timeZone).add({ years: 1 }).toString();
+export function defaultEndDate(start: Date) {
+  return plainDateOf(start).add({ years: 1 }).toString();
 }
 
 /** Why `endDate` can't end a series starting on `first`, or null if it can */
@@ -105,20 +104,21 @@ export function seriesDates(first: Temporal.PlainDate, rule: RepeatRule) {
 
 /**
  * `startTime`–`endTime` moved to `date`, keeping their wall-clock times (and
- * the number of days between them) in `timeZone`.
+ * the number of days between them).
  */
 export function timesOnDate(
   times: { startTime: Date; endTime: Date },
   date: Temporal.PlainDate,
-  timeZone: string,
 ) {
-  const start = zonedOf(times.startTime, timeZone);
-  const end = zonedOf(times.endTime, timeZone);
+  const start = zonedOf(times.startTime);
+  const end = zonedOf(times.endTime);
   const days = start.toPlainDate().until(end.toPlainDate()).days;
   const at = (day: Temporal.PlainDate, time: Temporal.ZonedDateTime) =>
     new Date(
-      day.toZonedDateTime({ timeZone, plainTime: time.toPlainTime() })
-        .epochMilliseconds,
+      day.toZonedDateTime({
+        timeZone: TIME_ZONE,
+        plainTime: time.toPlainTime(),
+      }).epochMilliseconds,
     );
   return {
     startTime: at(date, start),
@@ -127,12 +127,9 @@ export function timesOnDate(
 }
 
 /** The wall-clock shape of a shift: start time, end time, days between */
-export function clockTimes(
-  times: { startTime: Date; endTime: Date },
-  timeZone: string,
-) {
-  const start = zonedOf(times.startTime, timeZone);
-  const end = zonedOf(times.endTime, timeZone);
+export function clockTimes(times: { startTime: Date; endTime: Date }) {
+  const start = zonedOf(times.startTime);
+  const end = zonedOf(times.endTime);
   return {
     start: start.toPlainTime().toString(),
     end: end.toPlainTime().toString(),

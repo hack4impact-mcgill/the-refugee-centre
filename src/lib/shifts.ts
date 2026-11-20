@@ -4,7 +4,7 @@ import { defaultEndDate, type RepeatRule } from "@/lib/recurrence";
 import type { ShiftInput, ShiftRecord } from "@/lib/schemas/shift";
 
 /** The rule of the series a shift belongs to, as saved */
-export type SavedRecurrence = RepeatRule & { id: string; timeZone: string };
+export type SavedRecurrence = RepeatRule & { id: string };
 
 /** Saved in extendedProps */
 export type ShiftDetails = {
@@ -75,7 +75,6 @@ export function eventOf(shift: ShiftRecord): ShiftEvent {
       byWeekday: recurrence.byWeekday,
       // A `date` column comes back as midnight UTC.
       endDate: recurrence.endDate.slice(0, 10),
-      timeZone: recurrence.timeZone,
     },
   };
   return {

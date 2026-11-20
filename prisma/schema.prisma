@@ -81,12 +81,10 @@ model RecurringShift {
   interval  Int                 @default(1)
   /// ISO weekdays (1 = Monday … 7 = Sunday) for Weekly. Empty otherwise.
   byWeekday Int[]               @map("by_weekday") @db.SmallInt
-  /// Date of the first shift, in `timeZone`
+  /// Date of the first shift
   startDate DateTime            @map("start_date") @db.Date
-  /// Date of the last possible shift (inclusive), in `timeZone`
+  /// Date of the last possible shift (inclusive)
   endDate   DateTime            @map("end_date") @db.Date
-  /// IANA time zone (e.g. America/Toronto) the shifts keep their wall-clock times in
-  timeZone  String              @map("time_zone")
   shifts    Shift[]
 
   @@map("recurring_shifts")

@@ -19,7 +19,6 @@ import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
 import { toast } from "@/components/toast";
-import { browserTimeZone } from "@/lib/recurrence";
 import {
   EMPTY_SHIFT_DETAILS,
   describeRepeat,
@@ -269,9 +268,7 @@ export default function Schedule() {
     setPending("save");
     const previous = shifts.find((shift) => shift.id === draft.id);
     const ruleChanged = repeatChanged(draft);
-    const recurrence = ruleChanged
-      ? draft.repeat && { ...draft.repeat, timeZone: browserTimeZone() }
-      : undefined;
+    const recurrence = ruleChanged ? draft.repeat : undefined;
     try {
       const saved = await saveShift(
         inputOf(draft),
