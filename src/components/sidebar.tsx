@@ -59,7 +59,7 @@ export default function Sidebar({ email }: { email?: string }) {
             width={37}
             height={32}
             priority
-            className="h-8 w-auto"
+            className="h-8 w-auto max-w-none"
           />
         </Link>
         <nav aria-label="Main">
