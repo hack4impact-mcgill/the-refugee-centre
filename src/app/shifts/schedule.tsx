@@ -307,7 +307,7 @@ export default function Schedule() {
           },
         });
       } else if (ruleChanged || (draft.recurrence && scope !== "this")) {
-        // Several shifts changed, some with new ids: reload rather than undo.
+        // Several shifts changed, some added or removed: reload rather than undo.
         await reloadShifts();
         toast.success(
           scope === "all"
