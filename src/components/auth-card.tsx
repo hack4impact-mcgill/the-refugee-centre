@@ -23,10 +23,11 @@ export default function AuthCard({
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-white px-6 py-10">
       <Image
-        src="/trc-emblem.svg"
+        src="/trc-logo-full.svg"
         alt="The Refugee Centre"
-        width={102}
-        height={89}
+        width={208}
+        height={128}
+        loading="eager"
         className="mb-6"
       />
       <section className="w-full max-w-[488px] rounded-lg border border-sandstone-300 bg-sandstone-100 px-7 py-10 sm:px-8 sm:py-12">
