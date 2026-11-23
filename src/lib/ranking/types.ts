@@ -1,9 +1,8 @@
 import type {
+  AssignmentStatus,
   Attendance,
   DayOfWeek,
   Language,
-  RankingTier,
-  ShiftOfferStatus,
 } from "@/generated/prisma/enums";
 
 export type AvailabilityWindow = {
@@ -19,14 +18,12 @@ export type RankingVolunteer = {
   availability: AvailabilityWindow[];
 };
 
-export type RankingOffer = {
+export type RankingAssignment = {
   volunteerId: string;
   shiftId: string;
-  status: ShiftOfferStatus;
+  status: AssignmentStatus;
   attendance: Attendance;
-  sentAt: Date;
-  respondedAt: Date | null;
-  shift: { startTime: Date };
+  shift: { startTime: Date; endTime: Date };
 };
 
 export type RankingShift = {
@@ -40,10 +37,6 @@ export type RankingShift = {
 export type RankedCandidate = {
   volunteerId: string;
   rank: number;
-  tier: RankingTier;
-  penalty: number;
-  flaggedForReview: boolean;
   shiftsAttended: number;
   lastAttendedAt: Date | null;
-  reason: string;
 };

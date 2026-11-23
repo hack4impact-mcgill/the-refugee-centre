@@ -34,11 +34,6 @@ export function daysElapsed(from: Date, to: Date, timeZone: string) {
   return Math.max(0, days);
 }
 
-/** Local dates crossed from `from` to `to`. Negative if `to` is earlier. */
-export function calendarDaysBetween(from: Date, to: Date, timeZone: string) {
-  return toPlainDate(from, timeZone).until(toPlainDate(to, timeZone)).days;
-}
-
 export function isSameWeek(a: Date, b: Date, timeZone: string) {
   const monday = (date: Temporal.PlainDate) =>
     date.subtract({ days: date.dayOfWeek - 1 });

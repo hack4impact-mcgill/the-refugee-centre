@@ -1,13 +1,11 @@
-import type { RankingConfig } from "./config";
-import { hardFilterFailures } from "./filters";
 import { summarizeAttendance } from "./attendance";
-import { calculatePenalty, tierForPenalty } from "./penalty";
-import { buildReason } from "./reason";
+import type { RankingConfig } from "./config";
+import { isEligible } from "./filters";
 import type {
-  RankingOffer,
+  RankedCandidate,
+  RankingAssignment,
   RankingShift,
   RankingVolunteer,
-  RankedCandidate,
 } from "./types";
 
 /** For tiebreakers */
@@ -27,50 +25,35 @@ function compareLastAttended(a: Date | null, b: Date | null) {
 }
 
 /**
- * `offers` should hold every offer for these volunteers, not just recent ones,
- * since an older shift can still be their last.
+ * Suggested replacements for a shift, best first. `assignments` should hold
+ * every assignment for these volunteers, since no-shows count however old.
  */
 export function rankVolunteers(
   volunteers: RankingVolunteer[],
-  offers: RankingOffer[],
+  assignments: RankingAssignment[],
   shift: RankingShift,
   now: Date,
   config: RankingConfig,
 ): RankedCandidate[] {
-  const offersOf = (volunteer: RankingVolunteer) =>
-    offers.filter((offer) => offer.volunteerId === volunteer.id);
+  const assignmentsOf = (volunteer: RankingVolunteer) =>
+    assignments.filter(({ volunteerId }) => volunteerId === volunteer.id);
   const tiebreak = (volunteerId: string) =>
     hash(`${config.tiebreakSeed}:${shift.id}:${volunteerId}`);
 
-  const candidates = volunteers.filter(
-    (volunteer) =>
-      hardFilterFailures(volunteer, offersOf(volunteer), shift, config)
-        .length === 0,
-  );
-
-  return candidates
+  return volunteers
+    .filter((volunteer) =>
+      isEligible(volunteer, assignmentsOf(volunteer), shift, config),
+    )
     .map((volunteer) => {
-      const own = offersOf(volunteer);
-      const penalty = calculatePenalty(own, now, config);
-      const tier = tierForPenalty(penalty, config);
       const { shiftsAttended, lastAttendedAt } = summarizeAttendance(
-        own,
+        assignmentsOf(volunteer),
         now,
         config,
       );
-      return {
-        volunteerId: volunteer.id,
-        tier,
-        penalty,
-        flaggedForReview: tier === "C",
-        shiftsAttended,
-        lastAttendedAt,
-        reason: buildReason(tier, shiftsAttended, lastAttendedAt, now, config),
-      };
+      return { volunteerId: volunteer.id, shiftsAttended, lastAttendedAt };
     })
     .sort(
       (a, b) =>
-        a.tier.localeCompare(b.tier) ||
         b.shiftsAttended - a.shiftsAttended ||
         compareLastAttended(a.lastAttendedAt, b.lastAttendedAt) ||
         tiebreak(a.volunteerId) - tiebreak(b.volunteerId) ||

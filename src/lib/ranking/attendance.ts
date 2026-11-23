@@ -1,23 +1,23 @@
 import type { RankingConfig } from "./config";
 import { daysElapsed } from "./time";
-import type { RankingOffer } from "./types";
+import type { RankingAssignment } from "./types";
 
-function attendedBefore(offers: RankingOffer[], now: Date) {
-  return offers.filter(
-    (offer) =>
-      offer.status === "ACCEPTED" &&
-      offer.attendance === "ATTENDED" &&
-      offer.shift.startTime <= now,
+function attendedBefore(assignments: RankingAssignment[], now: Date) {
+  return assignments.filter(
+    ({ status, attendance, shift }) =>
+      status === "ACCEPTED" &&
+      attendance === "ATTENDED" &&
+      shift.startTime <= now,
   );
 }
 
-/** Pass only this volunteer's offers. */
+/** Pass only this volunteer's assignments. */
 export function summarizeAttendance(
-  offers: RankingOffer[],
+  assignments: RankingAssignment[],
   now: Date,
   config: RankingConfig,
 ) {
-  const attended = attendedBefore(offers, now);
+  const attended = attendedBefore(assignments, now);
   const shiftsAttended = attended.filter(
     ({ shift }) =>
       daysElapsed(shift.startTime, now, config.timeZone) <=
