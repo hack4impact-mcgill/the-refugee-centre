@@ -10,15 +10,52 @@ datasource db {
 }
 
 model Volunteer {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   name           String?
   phone          String?
-  email          String?  @unique
-  approvedShifts Int?     @default(0) @map("approved_shifts")
-  refusedShifts  Int?     @default(0) @map("refused_shifts")
+  email          String?        @unique
+  languages      Language[]     @default([])
+  positions      Position[]     @default([])
+  approvedShifts Int?           @default(0) @map("approved_shifts")
+  refusedShifts  Int?           @default(0) @map("refused_shifts")
+  availabilities Availability[]
+  notes          String?
 
   @@map("volunteers")
+}
+
+model Availability {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  volunteerId String    @map("volunteer_id") @db.Uuid
+  dayOfWeek   DayOfWeek @map("day_of_week")
+  startTime   DateTime  @map("start_time") @db.Time(0)
+  endTime     DateTime  @map("end_time") @db.Time(0)
+
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  @@index([volunteerId])
+  @@map("availabilities")
+}
+
+enum DayOfWeek {
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+  Sunday
+
+  @@map("day_of_week")
+}
+
+enum Position {
+  Receptionist
+  PortalWorkshopAssistant
+  FrenchConversationCircleLeader
+
+  @@map("position")
 }
 
 enum Language {
