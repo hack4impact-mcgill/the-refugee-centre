@@ -10,12 +10,24 @@ function formatMinute(minute: number) {
     : `${hour}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
+/** Formats a day as e.g. "Monday". */
+export function formatDayName(day: AvailabilityWindow["day"]) {
+  return day.charAt(0) + day.slice(1).toLowerCase();
+}
+
+/** Formats a window's times as e.g. "9 AM–12 PM". */
+export function formatTimeRange({
+  startMinute,
+  endMinute,
+}: Pick<AvailabilityWindow, "startMinute" | "endMinute">) {
+  return `${formatMinute(startMinute)}–${formatMinute(endMinute)}`;
+}
+
 /** Formats a window as e.g. "Monday (9 AM-12 PM)". */
 export function formatAvailabilityWindow({
   day,
   startMinute,
   endMinute,
 }: AvailabilityWindow) {
-  const dayName = day.charAt(0) + day.slice(1).toLowerCase();
-  return `${dayName} (${formatMinute(startMinute)}-${formatMinute(endMinute)})`;
+  return `${formatDayName(day)} (${formatMinute(startMinute)}-${formatMinute(endMinute)})`;
 }

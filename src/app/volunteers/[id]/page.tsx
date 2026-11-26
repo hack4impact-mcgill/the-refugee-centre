@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { BsPencilSquare } from "react-icons/bs";
-import { formatAvailabilityWindow } from "@/lib/volunteers";
+import { DayOfWeek } from "@/generated/prisma/enums";
+import type { AvailabilityWindow } from "@/lib/ranking/types";
+import { formatDayName, formatTimeRange } from "@/lib/volunteers";
 import { getVolunteerProfile } from "@/lib/volunteers.server";
 
 export const metadata: Metadata = {
@@ -26,6 +28,40 @@ function ProfileField({ label, value }: { label: string; value: ReactNode }) {
         {isEmpty ? <span className="text-sandstone-500">—</span> : value}
       </dd>
     </div>
+  );
+}
+
+/** The week, one row per day, with each window as a time chip. */
+function AvailabilitySchedule({ windows }: { windows: AvailabilityWindow[] }) {
+  return (
+    <ul className="flex w-fit min-w-80 flex-col divide-y divide-sandstone-300 rounded-lg border border-sandstone-400 bg-white">
+      {Object.values(DayOfWeek).map((day) => {
+        const dayWindows = windows
+          .filter((window) => window.day === day)
+          .sort((a, b) => a.startMinute - b.startMinute);
+        return (
+          <li key={day} className="flex min-h-10 items-center gap-4 px-4 py-1.5">
+            <span className="w-24 shrink-0 text-body2 font-bold text-navy-900">
+              {formatDayName(day)}
+            </span>
+            {dayWindows.length === 0 ? (
+              <span className="text-body2 text-sandstone-600">Unavailable</span>
+            ) : (
+              <span className="flex flex-wrap gap-1.5">
+                {dayWindows.map((window) => (
+                  <span
+                    key={window.startMinute}
+                    className="rounded-full bg-navy-200 px-2.5 py-0.5 text-body2 whitespace-nowrap text-navy-900"
+                  >
+                    {formatTimeRange(window)}
+                  </span>
+                ))}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -83,12 +119,14 @@ export default async function VolunteerProfilePage({
             </Link>
           }
         />
-        <ProfileField
-          label="Availability"
-          value={volunteer.availability
-            .map(formatAvailabilityWindow)
-            .join(", ")}
-        />
+        <div className="flex flex-col gap-1.5">
+          <dt className="text-overline text-navy-700 uppercase">
+            Availability
+          </dt>
+          <dd>
+            <AvailabilitySchedule windows={volunteer.availability} />
+          </dd>
+        </div>
         <ProfileField label="Notes" value={volunteer.notes} />
       </dl>
     </div>
