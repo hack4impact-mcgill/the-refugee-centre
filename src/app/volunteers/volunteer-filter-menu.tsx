@@ -14,6 +14,7 @@ type FilterField = "name" | "languages" | "positions";
 type VolunteerFilterMenuProps = {
   selectedFilters: Record<FilterField, string[]>;
   onToggleFilter: (field: FilterField, value: string) => void;
+  positionNames: string[];
 };
 
 const FILTER_FIELDS: { field: FilterField; label: string }[] = [
@@ -24,11 +25,10 @@ const FILTER_FIELDS: { field: FilterField; label: string }[] = [
 
 const LANGUAGES = Object.values(Language).sort((a, b) => a.localeCompare(b));
 
-const POSITIONS = ["Receptionist", "Portal Worker"];
-
 export default function VolunteerFilterMenu({
   selectedFilters,
   onToggleFilter,
+  positionNames,
 }: VolunteerFilterMenuProps) {
   // is the dropdown visible
   const [isOpen, setIsOpen] = useState(false);
@@ -47,7 +47,7 @@ export default function VolunteerFilterMenu({
     activeField === "languages"
       ? LANGUAGES
       : activeField === "positions"
-        ? POSITIONS
+        ? positionNames
         : [];
 
   const visibleOptions = options.filter((option) =>

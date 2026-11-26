@@ -5,59 +5,40 @@ import VolunteersToolbar from "./toolbar";
 import SelectionBanner from "./selection-banner";
 import DeleteConfirmationModal from "./delete-confirmation-modal";
 import DeleteToast from "./delete-toast";
-
-const MOCK_VOLUNTEERS = [
-  {
-    id: 1,
-    name: "Leticia Huang",
-    email: "leticia.huang@mail.mcgill.ca",
-    phone: "+1 (XXX) XXX-XXXX",
-    languages: ["English"],
-    positions: ["Receptionist", "Portal Worker"],
-    approvedShifts: 1,
-    refusedShifts: 3,
-    availability: ["Monday (9 AM-12 PM)"],
-    notes: "Text",
-  },
-  {
-    id: 2,
-    name: "Amine Saoudi",
-    email: "amine.saoudi@mail.mcgill.ca",
-    phone: "+1 (XXX) XXX-XXXX",
-    languages: ["French", "English"],
-    positions: ["Receptionist"],
-    approvedShifts: 1,
-    refusedShifts: 3,
-    availability: ["Monday (9 AM-12 PM)"],
-    notes: "Text",
-  },
-  {
-    id: 3,
-    name: "Emily Wang",
-    email: "emily.wang@mail.mcgill.ca",
-    phone: "+1 (XXX) XXX-XXXX",
-    languages: ["French", "English"],
-    positions: ["Receptionist", "Portal Worker"],
-    approvedShifts: 1,
-    refusedShifts: 3,
-    availability: ["Monday (9 AM-12 PM)"],
-    notes: "Text",
-  },
-];
+import {
+  formatAvailabilityWindow,
+  type VolunteerRecord,
+} from "@/lib/volunteers";
 
 type FilterField = "name" | "languages" | "positions";
 
-export default function VolunteersTable() {
-  const [volunteers, setVolunteers] = useState(MOCK_VOLUNTEERS);
+type VolunteersTableProps = {
+  initialVolunteers: VolunteerRecord[];
+  positionNames: string[];
+};
+
+// alphabetical by name, unnamed volunteers last (same order as the server)
+function byName(a: VolunteerRecord, b: VolunteerRecord) {
+  if (a.name === b.name) return 0;
+  if (a.name === null) return 1;
+  if (b.name === null) return -1;
+  return a.name.localeCompare(b.name);
+}
+
+export default function VolunteersTable({
+  initialVolunteers,
+  positionNames,
+}: VolunteersTableProps) {
+  const [volunteers, setVolunteers] = useState(initialVolunteers);
   // for the main search bar
   const [searchInput, setSearchInput] = useState("");
   // submitted submitted search term
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletedVolunteers, setDeletedVolunteers] = useState<
-    typeof MOCK_VOLUNTEERS
-  >([]);
+  const [deletedVolunteers, setDeletedVolunteers] = useState<VolunteerRecord[]>(
+    [],
+  );
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<
     Record<FilterField, string[]>
@@ -67,7 +48,7 @@ export default function VolunteersTable() {
     positions: [],
   });
 
-  const handleSelectRow = (id: number) => {
+  const handleSelectRow = (id: string) => {
     setSelectedIds((prevBox) =>
       prevBox.includes(id)
         ? prevBox.filter((currentId) => currentId !== id)
@@ -76,16 +57,18 @@ export default function VolunteersTable() {
   };
   // currently only for the main search
   const filteredVolunteers = volunteers.filter((volunteer) => {
+    const volunteerName = (volunteer.name ?? "").toLowerCase();
+
     // main search
-    const matchesSearch = volunteer.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase().trim());
+    const matchesSearch = volunteerName.includes(
+      searchQuery.toLowerCase().trim(),
+    );
 
     // name filter
     const matchesName =
       selectedFilters.name.length === 0 ||
       selectedFilters.name.some((name) =>
-        volunteer.name.toLowerCase().includes(name.toLowerCase()),
+        volunteerName.includes(name.toLowerCase()),
       );
 
     // spoken languages filter (volunteer has at least one of the selected languages)
@@ -104,7 +87,7 @@ export default function VolunteersTable() {
       selectedFilters.positions.some((position) =>
         volunteer.positions.some(
           (volunteerPosition) =>
-            volunteerPosition.toLowerCase() === position.toLowerCase(),
+            volunteerPosition.name.toLowerCase() === position.toLowerCase(),
         ),
       );
 
@@ -164,7 +147,7 @@ export default function VolunteersTable() {
       const restored = [...prev, ...deletedVolunteers];
 
       // Restore the original order of the volunteers
-      return restored.sort((a, b) => a.id - b.id);
+      return restored.sort(byName);
     });
 
     setDeletedVolunteers([]);
@@ -179,6 +162,7 @@ export default function VolunteersTable() {
         setSearchQuery={setSearchQuery}
         selectedFilters={selectedFilters}
         onToggleFilter={handleToggleFilter}
+        positionNames={positionNames}
       />
 
       <div className="w-full overflow-x-auto">
@@ -266,7 +250,9 @@ export default function VolunteersTable() {
                   </td>
 
                   <td className="border-r border-sandstone-300 p-2 truncate">
-                    {volunteer.positions.join(", ")}
+                    {volunteer.positions
+                      .map((position) => position.name)
+                      .join(", ")}
                   </td>
 
                   <td className="border-r border-sandstone-300 p-2">
@@ -278,7 +264,9 @@ export default function VolunteersTable() {
                   </td>
 
                   <td className="border-r border-sandstone-300 p-2 truncate">
-                    {volunteer.availability.join(", ")}
+                    {volunteer.availability
+                      .map(formatAvailabilityWindow)
+                      .join(", ")}
                   </td>
 
                   <td className="border border-sandstone-300 p-2 truncate">
@@ -303,7 +291,9 @@ export default function VolunteersTable() {
       />
       <DeleteToast
         isOpen={showDeleteToast}
-        deletedNames={deletedVolunteers.map((volunteer) => volunteer.name)}
+        deletedNames={deletedVolunteers.map(
+          (volunteer) => volunteer.name ?? "Unnamed volunteer",
+        )}
         onUndo={handleUndo}
         onClose={() => setShowDeleteToast(false)}
       />

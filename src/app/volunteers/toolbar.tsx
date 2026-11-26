@@ -10,6 +10,7 @@ type VolunteersToolbarProps = {
     field: "name" | "languages" | "positions",
     value: string,
   ) => void;
+  positionNames: string[];
 };
 
 export default function VolunteersToolbar({
@@ -18,6 +19,7 @@ export default function VolunteersToolbar({
   setSearchQuery,
   selectedFilters,
   onToggleFilter,
+  positionNames,
 }: VolunteersToolbarProps) {
   return (
     <div className="w-full">
@@ -61,6 +63,7 @@ export default function VolunteersToolbar({
         <VolunteerFilterMenu
           selectedFilters={selectedFilters}
           onToggleFilter={onToggleFilter}
+          positionNames={positionNames}
         />
       </div>
     </div>
