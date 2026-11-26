@@ -86,9 +86,7 @@ export default async function VolunteerShiftsPage({
         >
           <BsArrowLeft aria-hidden className="size-5" />
         </Link>
-        <h2 className="truncate text-h5">
-          {history.name ?? "Unnamed volunteer"}: shift history
-        </h2>
+        <h2 className="truncate text-h5">{history.name}: shift history</h2>
       </div>
 
       <div className="flex flex-col gap-8 px-8 py-6">

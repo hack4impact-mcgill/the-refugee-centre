@@ -102,7 +102,7 @@ export type VolunteerField = keyof z.input<typeof volunteerInputSchema>;
 export type VolunteerRecord = {
   id: string;
   createdAt: Date;
-  name: string | null;
+  name: string;
   email: string | null;
   phone: string | null;
   languages: Language[];

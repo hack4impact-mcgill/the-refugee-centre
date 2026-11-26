@@ -33,8 +33,8 @@ INSERT INTO volunteers (id, name, email, phone, languages, notes) VALUES
   ('5eed0000-0000-4000-8000-000000000106', 'Reza Ahmadi', 'reza.ahmadi@example.com', '+1 (514) 555-0106', ARRAY['Farsi', 'English', 'French']::language[], 'On leave until January.'),
   -- no positions or availability yet
   ('5eed0000-0000-4000-8000-000000000107', 'Sophie Tremblay', 'sophie.tremblay@example.com', '+1 (514) 555-0107', ARRAY['French', 'English']::language[], NULL),
-  -- only an email so far, to check how unnamed volunteers display
-  ('5eed0000-0000-4000-8000-000000000108', NULL, 'new.volunteer@example.com', NULL, ARRAY[]::language[], NULL);
+  -- only a name and an email so far, to check how sparse rows display
+  ('5eed0000-0000-4000-8000-000000000108', 'Samir Benali', 'samir.benali@example.com', NULL, ARRAY[]::language[], NULL);
 
 INSERT INTO volunteer_positions (volunteer_id, position_id)
 SELECT v.volunteer_id::uuid, p.id

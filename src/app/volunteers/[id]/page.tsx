@@ -82,9 +82,7 @@ export default async function VolunteerProfilePage({
       </header>
 
       <div className="flex items-center justify-between gap-4 border-b border-[#b2b2b2] px-8 py-4">
-        <h2 className="truncate text-h5">
-          {volunteer.name ?? "Unnamed volunteer"}
-        </h2>
+        <h2 className="truncate text-h5">{volunteer.name}</h2>
         <Link
           href={`/volunteers/${volunteer.id}/edit`}
           className={editLinkClassName}

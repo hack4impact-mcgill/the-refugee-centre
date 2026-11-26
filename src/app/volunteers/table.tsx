@@ -31,7 +31,7 @@ function ShiftHistoryLink({
   return (
     <Link
       href={`/volunteers/${volunteer.id}/shifts`}
-      aria-label={`${count}, view shift history for ${volunteer.name ?? "unnamed volunteer"}`}
+      aria-label={`${count}, view shift history for ${volunteer.name}`}
       className="text-navy-900 underline decoration-sandstone-400 underline-offset-2 hover:decoration-navy-900"
     >
       {count}
@@ -51,7 +51,7 @@ const COLUMNS: DataTableColumn<VolunteerRecord>[] = [
     // The row opens the profile on click; this link is the same for keyboards.
     render: (v) => (
       <Link href={`/volunteers/${v.id}`} className="hover:underline">
-        {v.name ?? <span className="sr-only">Unnamed volunteer</span>}
+        {v.name}
       </Link>
     ),
   },
@@ -110,7 +110,7 @@ function matchesFilters(
   searchQuery: string,
   filters: SelectedFilters<FilterField>,
 ) {
-  const volunteerName = (volunteer.name ?? "").toLowerCase();
+  const volunteerName = volunteer.name.toLowerCase();
   const volunteerPositions = volunteer.positions.map(({ name }) => name);
 
   const matchesSearch = volunteerName.includes(
@@ -205,7 +205,7 @@ export default function VolunteersTable({
       setShowDeleteModal(false);
       toast.success(
         deleted.length === 1
-          ? `${deleted[0].name ?? "Unnamed volunteer"} was deleted`
+          ? `${deleted[0].name} was deleted`
           : `${deleted.length} volunteers were deleted`,
       );
     });
@@ -249,8 +249,7 @@ export default function VolunteersTable({
           selectedIds,
           onChange: setSelectedIds,
           selectAllLabel: "Select all volunteers",
-          getRowLabel: (volunteer) =>
-            `Select ${volunteer.name ?? "unnamed volunteer"}`,
+          getRowLabel: (volunteer) => `Select ${volunteer.name}`,
         }}
       />
 

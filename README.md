@@ -95,7 +95,7 @@ docker compose logs db      # See Postgres logs if something won't connect
 `npm run db:seed` runs [`prisma/seed.sql`](prisma/seed.sql), which adds:
 
 - 3 positions: Receptionist, Portal Workshop Assistant and French Conversation Circle Leader
-- 8 volunteers, with languages, positions, weekly availability and notes. One has no positions or availability, and one has only an email, to show how empty and unnamed rows look
+- 8 volunteers, with languages, positions, weekly availability and notes. One has no positions or availability, and one has only a name and an email, to show how sparse rows look
 - 5 past shifts in October 2026 (so they don't crowd the current week in the calendar), with shift offers in every status. The volunteers table shows each volunteer's approved and refused counts from these
 
 You can run it again at any time. It deletes the rows it added last time (they have fixed ids starting with `5eed0000`) and inserts them again, without touching anything you added yourself. It refuses to run on any database other than the local `trc` one, so it can't write to Supabase. The emails use `example.com` and the phone numbers use the fictional 555-01xx range.

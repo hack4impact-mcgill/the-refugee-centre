@@ -156,7 +156,7 @@ export default function VolunteerForm({
     >
       <div className="flex items-center justify-between gap-4 border-b border-[#b2b2b2] px-8 py-4">
         <h2 id="volunteer-form-heading" className="truncate text-h5">
-          {name.trim() || (volunteer ? "Unnamed volunteer" : "New volunteer")}
+          {name.trim() || volunteer?.name || "New volunteer"}
         </h2>
         <button
           type="submit"

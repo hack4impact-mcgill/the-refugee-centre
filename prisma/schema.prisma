@@ -12,7 +12,7 @@ datasource db {
 model Volunteer {
   id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  name      String?
+  name      String
   phone     String?
   email     String?    @unique
   languages Language[] @default([])

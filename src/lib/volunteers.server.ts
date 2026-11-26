@@ -139,7 +139,7 @@ export type ShiftHistoryEntry = {
  * when there is no such volunteer. Redirects signed-out users to /login.
  */
 export async function getVolunteerShiftHistory(volunteerId: string): Promise<{
-  name: string | null;
+  name: string;
   accepted: ShiftHistoryEntry[];
   refused: ShiftHistoryEntry[];
 } | null> {
