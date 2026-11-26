@@ -1,16 +1,24 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FaTrashAlt } from "react-icons/fa";
+import { BsPlusCircleFill } from "react-icons/bs";
 import ConfirmDialog from "@/components/confirm-dialog";
+import DataTable, { type DataTableColumn } from "@/components/data-table";
+import FilterMenu, {
+  type FilterFieldConfig,
+  type SelectedFilters,
+} from "@/components/filter-menu";
+import SelectionBanner from "@/components/selection-banner";
+import TableToolbar, {
+  toolbarButtonClassName,
+  toolbarPrimaryButtonClassName,
+} from "@/components/table-toolbar";
 import { toast } from "@/components/toast";
+import { Language } from "@/generated/prisma/enums";
 import type { VolunteerRecord } from "@/lib/schemas/volunteer";
 import { formatAvailabilityWindow } from "@/lib/volunteers";
 import { deleteVolunteers } from "./actions";
-import VolunteersToolbar from "./toolbar";
-import type { FilterField, SelectedFilters } from "./volunteer-filter-menu";
 
 /** A shift count that opens the volunteer's accepted and refused shifts. */
 function ShiftHistoryLink({
@@ -31,44 +39,12 @@ function ShiftHistoryLink({
   );
 }
 
-/** The bar along the bottom while rows are selected, with their Delete button. */
-function SelectionBanner({
-  selectedCount,
-  onDelete,
-}: {
-  selectedCount: number;
-  onDelete: () => void;
-}) {
-  if (selectedCount === 0) return null;
-
-  return (
-    <div className="absolute bottom-0 left-0 right-0 z-30 flex h-[64px] items-center justify-between bg-sandstone-500 px-8 py-4">
-      <div className="text-[14px] leading-none text-sandstone-100">
-        <span className="font-bold">{selectedCount}</span> selected
-      </div>
-
-      <button
-        type="button"
-        onClick={onDelete}
-        className="flex h-[32px] items-center justify-center gap-[6px] rounded-[4px] bg-danger px-[10px] text-[14px] leading-none text-white cursor-pointer"
-      >
-        <FaTrashAlt className="h-4 w-4" />
-        <span>Delete</span>
-      </button>
-    </div>
-  );
-}
-
 type VolunteersTableProps = {
   initialVolunteers: VolunteerRecord[];
   positionNames: string[];
 };
 
-const COLUMNS: {
-  label: string;
-  width: string;
-  render: (volunteer: VolunteerRecord) => ReactNode;
-}[] = [
+const COLUMNS: DataTableColumn<VolunteerRecord>[] = [
   {
     label: "Name",
     width: "w-[117px]",
@@ -109,8 +85,22 @@ const COLUMNS: {
   { label: "Notes", width: "w-[198.67px]", render: (v) => v.notes },
 ];
 
-const checkboxClassName =
-  "h-3.5 w-3.5 rounded border border-sandstone-400 bg-white accent-navy-800 cursor-pointer";
+type FilterField = "name" | "languages" | "positions";
+
+const LANGUAGES = Object.values(Language).sort((a, b) => a.localeCompare(b));
+
+const filterFields = (
+  positionNames: string[],
+): FilterFieldConfig<FilterField>[] => [
+  { field: "name", label: "Name" },
+  {
+    field: "languages",
+    label: "Spoken Languages",
+    chipLabel: "Spoken Language",
+    options: LANGUAGES,
+  },
+  { field: "positions", label: "Positions", options: positionNames },
+];
 
 const includesIgnoringCase = (values: string[], value: string) =>
   values.some((current) => current.toLowerCase() === value.toLowerCase());
@@ -118,7 +108,7 @@ const includesIgnoringCase = (values: string[], value: string) =>
 function matchesFilters(
   volunteer: VolunteerRecord,
   searchQuery: string,
-  filters: SelectedFilters,
+  filters: SelectedFilters<FilterField>,
 ) {
   const volunteerName = (volunteer.name ?? "").toLowerCase();
   const volunteerPositions = volunteer.positions.map(({ name }) => name);
@@ -148,16 +138,14 @@ export default function VolunteersTable({
   initialVolunteers,
   positionNames,
 }: VolunteersTableProps) {
-  const router = useRouter();
   const [volunteers, setVolunteers] = useState(initialVolunteers);
-  // The search only applies on Enter, so the typed text and the applied query
-  // are kept apart.
-  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, startDeleting] = useTransition();
-  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({
+  const [selectedFilters, setSelectedFilters] = useState<
+    SelectedFilters<FilterField>
+  >({
     name: [],
     languages: [],
     positions: [],
@@ -167,13 +155,12 @@ export default function VolunteersTable({
     matchesFilters(volunteer, searchQuery, selectedFilters),
   );
 
-  const visibleIds = filteredVolunteers.map((volunteer) => volunteer.id);
-  const allVisibleSelected =
-    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
-
   // The selection only ever holds visible rows, so the banner count and the
   // delete never include volunteers the search or filters hide.
-  const applySearchAndFilters = (query: string, filters: SelectedFilters) => {
+  const applySearchAndFilters = (
+    query: string,
+    filters: SelectedFilters<FilterField>,
+  ) => {
     setSearchQuery(query);
     setSelectedFilters(filters);
     const stillVisible = new Set(
@@ -182,14 +169,6 @@ export default function VolunteersTable({
         .map((volunteer) => volunteer.id),
     );
     setSelectedIds((prev) => prev.filter((id) => stillVisible.has(id)));
-  };
-
-  const handleSelectRow = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((currentId) => currentId !== id)
-        : [...prev, id],
-    );
   };
 
   const handleToggleFilter = (field: FilterField, value: string) => {
@@ -204,10 +183,6 @@ export default function VolunteersTable({
 
   const handleSearch = (query: string) =>
     applySearchAndFilters(query, selectedFilters);
-
-  const handleSelectAll = () => {
-    setSelectedIds(allVisibleSelected ? [] : visibleIds);
-  };
 
   // Deletes on the server first; rows only leave the table once that succeeds.
   const handleConfirmDelete = () => {
@@ -240,81 +215,44 @@ export default function VolunteersTable({
 
   return (
     <div className="relative flex-1 w-full">
-      <VolunteersToolbar
-        searchInput={searchInput}
-        setSearchInput={setSearchInput}
-        setSearchQuery={handleSearch}
-        selectedFilters={selectedFilters}
-        onToggleFilter={handleToggleFilter}
-        positionNames={positionNames}
+      <TableToolbar
+        onSearch={handleSearch}
+        actions={
+          <>
+            <button type="button" className={toolbarButtonClassName}>
+              Export
+            </button>
+            <Link
+              href="/volunteers/new"
+              className={toolbarPrimaryButtonClassName}
+            >
+              <BsPlusCircleFill className="w-[22px] h-[22px] shrink-0" />
+              <span>Add profile</span>
+            </Link>
+          </>
+        }
+        filters={
+          <FilterMenu
+            fields={filterFields(positionNames)}
+            selectedFilters={selectedFilters}
+            onToggleFilter={handleToggleFilter}
+          />
+        }
       />
 
-      <div className="w-full overflow-x-auto">
-        <table className="w-full border-collapse table-fixed text-sm">
-          <thead>
-            <tr className="border-b border-sandstone-300 h-[35px]">
-              <th className="w-[32px]"></th>
-              <th className="w-[30px] p-2 text-left">
-                <input
-                  type="checkbox"
-                  aria-label="Select all volunteers"
-                  className={checkboxClassName}
-                  checked={allVisibleSelected}
-                  onChange={handleSelectAll}
-                />
-              </th>
-              {COLUMNS.map(({ label, width }) => (
-                <th
-                  key={label}
-                  className={`${width} p-2 text-left font-bold text-[#162022] border-r border-sandstone-300`}
-                >
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredVolunteers.map((volunteer) => {
-              const isChecked = selectedIds.includes(volunteer.id);
-              return (
-                <tr
-                  key={volunteer.id}
-                  onClick={(event) => {
-                    // Links, the checkbox and its cell keep their own behaviour.
-                    const target = event.target as HTMLElement;
-                    if (target.closest("a, input, button, [data-no-row-click]"))
-                      return;
-                    router.push(`/volunteers/${volunteer.id}`);
-                  }}
-                  className={`border-b border-sandstone-300 h-[35px] cursor-pointer transition-colors ${
-                    isChecked ? "bg-[#C4D5E0]" : "bg-white hover:bg-navy-200"
-                  }`}
-                >
-                  <td data-no-row-click></td>
-                  <td data-no-row-click className="p-2">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${volunteer.name ?? "unnamed volunteer"}`}
-                      className={checkboxClassName}
-                      checked={isChecked}
-                      onChange={() => handleSelectRow(volunteer.id)}
-                    />
-                  </td>
-                  {COLUMNS.map(({ label, render }) => (
-                    <td
-                      key={label}
-                      className="border-r border-sandstone-300 p-2 truncate"
-                    >
-                      {render(volunteer)}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={filteredVolunteers}
+        columns={COLUMNS}
+        getRowId={(volunteer) => volunteer.id}
+        getRowHref={(volunteer) => `/volunteers/${volunteer.id}`}
+        selection={{
+          selectedIds,
+          onChange: setSelectedIds,
+          selectAllLabel: "Select all volunteers",
+          getRowLabel: (volunteer) =>
+            `Select ${volunteer.name ?? "unnamed volunteer"}`,
+        }}
+      />
 
       <SelectionBanner
         selectedCount={selectedIds.length}

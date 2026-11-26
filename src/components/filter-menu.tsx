@@ -8,54 +8,50 @@ import {
   BsXCircleFill,
 } from "react-icons/bs";
 import { FaFilter } from "react-icons/fa";
-import { Language } from "@/generated/prisma/enums";
 
-export type FilterField = "name" | "languages" | "positions";
-export type SelectedFilters = Record<FilterField, string[]>;
-
-type VolunteerFilterMenuProps = {
-  selectedFilters: SelectedFilters;
-  onToggleFilter: (field: FilterField, value: string) => void;
-  positionNames: string[];
+export type FilterFieldConfig<F extends string> = {
+  field: F;
+  /** Shown in the menu, e.g. "Spoken Languages". */
+  label: string;
+  /** Shown on the chip when it differs, e.g. "Spoken Language". */
+  chipLabel?: string;
+  /** The values to pick from. Left out, the user types a value and presses Enter. */
+  options?: string[];
 };
 
-const FILTER_FIELDS: { field: FilterField; label: string }[] = [
-  { field: "name", label: "Name" },
-  { field: "languages", label: "Spoken Languages" },
-  { field: "positions", label: "Positions" },
-];
+export type SelectedFilters<F extends string> = Record<F, string[]>;
 
-const LANGUAGES = Object.values(Language).sort((a, b) => a.localeCompare(b));
+type FilterMenuProps<F extends string> = {
+  fields: FilterFieldConfig<F>[];
+  selectedFilters: SelectedFilters<F>;
+  onToggleFilter: (field: F, value: string) => void;
+};
 
-export default function VolunteerFilterMenu({
+/** The "Add filter" button, its menu, and a chip per filtered field. */
+export default function FilterMenu<F extends string>({
+  fields,
   selectedFilters,
   onToggleFilter,
-  positionNames,
-}: VolunteerFilterMenuProps) {
+}: FilterMenuProps<F>) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeField, setActiveField] = useState<FilterField | null>(null);
+  const [activeField, setActiveField] = useState<F | null>(null);
   const [filterSearch, setFilterSearch] = useState("");
 
-  const openField = (field: FilterField) => {
+  const active = fields.find(({ field }) => field === activeField);
+
+  const openField = (field: F) => {
     setActiveField(field);
     setFilterSearch("");
     setIsOpen(true);
   };
 
-  const options =
-    activeField === "languages"
-      ? LANGUAGES
-      : activeField === "positions"
-        ? positionNames
-        : [];
-
-  const visibleOptions = options.filter((option) =>
+  const visibleOptions = (active?.options ?? []).filter((option) =>
     option.toLowerCase().includes(filterSearch.toLowerCase()),
   );
 
   return (
     <div className="relative flex items-center gap-2">
-      {FILTER_FIELDS.map(({ field, label }) => {
+      {fields.map(({ field, label, chipLabel }) => {
         const values = selectedFilters[field];
 
         if (values.length === 0) return null;
@@ -71,7 +67,7 @@ export default function VolunteerFilterMenu({
               className="flex items-center gap-[6px] text-[14px] text-navy-900 cursor-pointer"
             >
               <FaFilter className="h-[10px] w-[10px]" />
-              <span>{field === "languages" ? "Spoken Language" : label}</span>
+              <span>{chipLabel ?? label}</span>
             </button>
 
             {values.map((value) => (
@@ -121,13 +117,14 @@ export default function VolunteerFilterMenu({
               onKeyDown={(e) => {
                 if (
                   e.key === "Enter" &&
-                  activeField === "name" &&
+                  active &&
+                  !active.options &&
                   filterSearch.trim()
                 ) {
-                  const name = filterSearch.trim();
+                  const value = filterSearch.trim();
 
-                  if (!selectedFilters.name.includes(name)) {
-                    onToggleFilter("name", name);
+                  if (!selectedFilters[active.field].includes(value)) {
+                    onToggleFilter(active.field, value);
                   }
                   setFilterSearch("");
                 }
@@ -137,37 +134,38 @@ export default function VolunteerFilterMenu({
           </div>
 
           <div className="max-h-[350px] overflow-y-auto rounded-b-lg border-x border-b border-sandstone-300 bg-white py-1">
-            {activeField === null ? (
-              FILTER_FIELDS.filter(({ label }) =>
-                label.toLowerCase().includes(filterSearch.toLowerCase()),
-              ).map(({ field, label }) => (
-                <button
-                  key={field}
-                  type="button"
-                  onClick={() => openField(field)}
-                  className="flex h-[38px] w-full items-center justify-between px-3 py-2 text-left text-body1 text-navy-900 hover:bg-sandstone-200 cursor-pointer"
-                >
-                  {label}
-                  {field !== "name" && (
-                    <BsArrowRightShort className="h-5 w-5" />
-                  )}
-                </button>
-              ))
-            ) : activeField === "name" ? (
+            {!active ? (
+              fields
+                .filter(({ label }) =>
+                  label.toLowerCase().includes(filterSearch.toLowerCase()),
+                )
+                .map(({ field, label, options }) => (
+                  <button
+                    key={field}
+                    type="button"
+                    onClick={() => openField(field)}
+                    className="flex h-[38px] w-full items-center justify-between px-3 py-2 text-left text-body1 text-navy-900 hover:bg-sandstone-200 cursor-pointer"
+                  >
+                    {label}
+                    {options && <BsArrowRightShort className="h-5 w-5" />}
+                  </button>
+                ))
+            ) : !active.options ? (
               <div className="px-3 py-2 text-[14px] text-navy-900">
-                Type a name above and press Enter to add it.
+                Type a {active.label.toLowerCase()} above and press Enter to add
+                it.
               </div>
             ) : (
               visibleOptions.map((option) => (
                 <button
                   key={option}
                   type="button"
-                  onClick={() => onToggleFilter(activeField, option)}
+                  onClick={() => onToggleFilter(active.field, option)}
                   className="flex h-[38px] w-full items-center justify-between px-3 py-2 text-left text-body1 text-navy-900 hover:bg-sandstone-200 cursor-pointer"
                 >
                   <span>{option}</span>
 
-                  {selectedFilters[activeField].includes(option) && (
+                  {selectedFilters[active.field].includes(option) && (
                     <BsCheck2 className="h-5 w-5 shrink-0" />
                   )}
                 </button>
