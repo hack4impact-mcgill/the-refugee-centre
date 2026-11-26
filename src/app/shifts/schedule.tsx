@@ -18,10 +18,7 @@ import interactionPlugin from "@fullcalendar/react/interaction";
 import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
-import type {
-  DeleteConfirmationRequired,
-  ShiftDeleted,
-} from "@/app/api/shifts/[id]/route";
+import type { DeleteConfirmationRequired } from "@/app/api/shifts/[id]/route";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 import {
@@ -30,7 +27,6 @@ import {
   detailsOf,
   eventOf,
   inputOf,
-  inputOfEvent,
   shiftEventClass,
   summarizeShift,
   type ShiftDraft,
@@ -78,35 +74,22 @@ async function saveShift(input: ShiftInput, id?: string) {
 }
 
 /**
- * Deletes a shift. `affectedVolunteers` counts the volunteers who accepted or
- * refused it; with `needsConfirmation`, nothing was deleted because the shift
- * has started and needs `confirm`.
+ * Returns the number of volunteers affected when the server wants a second
+ * confirmation (the shift has started and volunteers responded), else null.
  */
-async function removeShift(
-  id: string,
-  { confirm = false } = {},
-): Promise<{ needsConfirmation: boolean; affectedVolunteers: number }> {
+async function removeShift(id: string, { confirm = false } = {}) {
   const response = await fetch(
     `/api/shifts/${id}${confirm ? "?confirm=true" : ""}`,
     { method: "DELETE" },
   );
   if (response.status === 409) {
     const body: DeleteConfirmationRequired = await response.json();
-    return {
-      needsConfirmation: true,
-      affectedVolunteers: body.affectedVolunteers,
-    };
+    return body.affectedVolunteers;
   }
-  // Already gone, so there's nothing to restore either.
-  if (response.status === 404) {
-    return { needsConfirmation: false, affectedVolunteers: 0 };
+  if (!response.ok && response.status !== 404) {
+    throw new Error(await response.text());
   }
-  if (!response.ok) throw new Error(await response.text());
-  const body: ShiftDeleted = await response.json();
-  return {
-    needsConfirmation: false,
-    affectedVolunteers: body.affectedVolunteers,
-  };
+  return null;
 }
 
 // View docs for FullCalendar callback functions: https://fullcalendar.io/docs/event-dragging-resizing
@@ -250,21 +233,9 @@ export default function Schedule() {
     setShifts((current) => current.filter((shift) => shift.id !== id));
   }
 
-  async function undo(change: () => Promise<void>, done: string) {
-    try {
-      await change();
-      setError(null);
-      toast.success(done);
-    } catch (err) {
-      console.error(err);
-      setError("Couldn't undo that change.");
-    }
-  }
-
   async function saveDraft() {
     if (!draft || pending) return;
     setPending("save");
-    const previous = shifts.find((shift) => shift.id === draft.id);
     try {
       const saved = await saveShift(
         inputOf(draft),
@@ -277,28 +248,11 @@ export default function Schedule() {
         addShift(saved);
         toast.success("Shift created", {
           description: summarizeShift(saved),
-          action: {
-            label: "Undo",
-            onClick: () =>
-              undo(async () => {
-                await removeShift(saved.id);
-                dropShift(saved.id);
-              }, "Shift removed"),
-          },
         });
       } else {
         replaceShift(saved);
         toast.success("Shift updated", {
           description: summarizeShift(saved),
-          action: previous && {
-            label: "Undo",
-            onClick: () =>
-              undo(async () => {
-                replaceShift(
-                  await saveShift(inputOfEvent(previous), previous.id),
-                );
-              }, "Changes undone"),
-          },
         });
       }
     } catch (err) {
@@ -314,12 +268,9 @@ export default function Schedule() {
     setPending("delete");
     const deleted = shifts.find((shift) => shift.id === draft.id);
     try {
-      const { needsConfirmation, affectedVolunteers } = await removeShift(
-        draft.id,
-        { confirm },
-      );
-      if (needsConfirmation) {
-        setConfirmingDelete({ affectedVolunteers });
+      const affected = await removeShift(draft.id, { confirm });
+      if (affected !== null) {
+        setConfirmingDelete({ affectedVolunteers: affected });
         return;
       }
       setConfirmingDelete(null);
@@ -329,18 +280,6 @@ export default function Schedule() {
 
       toast.success("Shift deleted", {
         description: deleted && summarizeShift(deleted),
-        // Undo saves it again as a new shift, with a new id. It can't bring
-        // back volunteers' responses, so a shift that had any gets no Undo.
-        action:
-          deleted && affectedVolunteers === 0
-            ? {
-                label: "Undo",
-                onClick: () =>
-                  undo(async () => {
-                    addShift(await saveShift(inputOfEvent(deleted)));
-                  }, "Shift restored"),
-              }
-            : undefined,
       });
     } catch (err) {
       console.error(err);

@@ -54,18 +54,11 @@ export type DeleteConfirmationRequired = {
   affectedVolunteers: number;
 };
 
-/** Body of a successful DELETE. */
-export type ShiftDeleted = {
-  /** Volunteers who had accepted or refused the deleted shift. */
-  affectedVolunteers: number;
-};
-
 /**
- * Deletes a shift, with its assignments, and responds with a `ShiftDeleted`
- * body. A shift that has started and that volunteers accepted or refused is
- * only deleted with `?confirm=true`, since that also removes it from their
- * accepted and refused counts; without it, responds 409 with a
- * `DeleteConfirmationRequired` body.
+ * Deletes a shift, with its assignments. A shift that has started and that
+ * volunteers accepted or refused is only deleted with `?confirm=true`, since
+ * that also removes it from their accepted and refused counts; without it,
+ * responds 409 with a `DeleteConfirmationRequired` body.
  */
 export async function DELETE(
   request: NextRequest,
@@ -112,5 +105,5 @@ export async function DELETE(
   // deleteMany reports a count instead of throwing when nothing matched.
   const { count } = await prisma.shift.deleteMany({ where: { id } });
   if (count === 0) return Response.json(NOT_FOUND, { status: 404 });
-  return Response.json({ affectedVolunteers } satisfies ShiftDeleted);
+  return new Response(null, { status: 204 });
 }
