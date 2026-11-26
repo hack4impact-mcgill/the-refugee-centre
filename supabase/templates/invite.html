@@ -1,0 +1,129 @@
+<!--
+  Supabase "Invite user" email template.
+  Paste into: Authentication → Emails → Templates → Invite user (Source tab).
+  Suggested subject: You're invited to The Refugee Centre
+
+  - The button links to /auth/confirm with token_hash, like the README describes.
+    Don't use {{ .ConfirmationURL }}: email scanners would use up the one-time token.
+  - The logo is served from the production site (public/email/trc-logo.png), so it
+    works no matter which server sent the invite. It must be a PNG: Gmail and Outlook
+    don't show SVG images.
+  - Everything important is text, so the email still makes sense when a client
+    (Outlook especially) blocks images.
+-->
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>You're invited to The Refugee Centre</title>
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <style>td, th, div, p, a, h1 { font-family: Arial, sans-serif !important; }</style>
+  <![endif]-->
+</head>
+<body style="margin:0; padding:0; width:100%; background-color:#f3f2ee;">
+  <!-- Preview text shown next to the subject in the inbox -->
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+    You've been invited to join The Refugee Centre's volunteer scheduling platform.
+    &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f2ee;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background-color:#ffffff; border:1px solid #ebe7dd; border-radius:12px; overflow:hidden;">
+
+          <!-- Accent bar in the logo's colours -->
+          <tr>
+            <td style="padding:0; font-size:0; line-height:0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="34%" height="6" style="background-color:#163345; font-size:0; line-height:0;">&nbsp;</td>
+                  <td width="33%" height="6" style="background-color:#e2b39a; font-size:0; line-height:0;">&nbsp;</td>
+                  <td width="33%" height="6" style="background-color:#e9c678; font-size:0; line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Logo -->
+          <tr>
+            <td align="center" style="padding:36px 40px 8px;">
+              <img src="{{ .SiteURL }}/email/trc-logo.png" width="200" height="123" alt="The Refugee Centre"
+                   style="display:block; width:200px; max-width:100%; height:auto; border:0; outline:none; text-decoration:none; color:#163345; font-family:'Nunito','Segoe UI',Helvetica,Arial,sans-serif; font-size:20px; font-weight:700; text-align:center;">
+            </td>
+          </tr>
+
+          <!-- Message -->
+          <tr>
+            <td style="padding:24px 40px 8px; font-family:'Nunito','Segoe UI',Helvetica,Arial,sans-serif; color:#425560;">
+              <h1 style="margin:0 0 16px; font-size:24px; line-height:32px; font-weight:700; color:#163345;">
+                You're invited to join The Refugee Centre
+              </h1>
+              <p style="margin:0 0 16px; font-size:16px; line-height:24px;">
+                Hello,
+              </p>
+              <p style="margin:0 0 24px; font-size:16px; line-height:24px;">
+                You've been invited to create an admin account on The Refugee Centre's
+                volunteer scheduling platform. Accept the invitation to set up your account
+                and sign in.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Button (VML version for Outlook desktop, HTML version for everything else) -->
+          <tr>
+            <td align="center" style="padding:0 40px 28px;">
+              <!--[if mso]>
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
+                style="height:48px; v-text-anchor:middle; width:240px;" arcsize="17%" stroke="f" fillcolor="#163345">
+                <w:anchorlock/>
+                <center style="color:#ffffff; font-family:Arial,sans-serif; font-size:16px; font-weight:bold;">Accept invitation</center>
+              </v:roundrect>
+              <![endif]-->
+              <!--[if !mso]><!-->
+              <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
+                 style="display:inline-block; background-color:#163345; color:#ffffff; font-family:'Nunito','Segoe UI',Helvetica,Arial,sans-serif; font-size:16px; font-weight:700; line-height:48px; padding:0 32px; border-radius:8px; text-decoration:none;">
+                Accept invitation
+              </a>
+              <!--<![endif]-->
+            </td>
+          </tr>
+
+          <!-- Fallback link and notes -->
+          <tr>
+            <td style="padding:0 40px 32px; font-family:'Nunito','Segoe UI',Helvetica,Arial,sans-serif; color:#617581;">
+              <p style="margin:0 0 8px; font-size:14px; line-height:20px;">
+                If the button doesn't work, copy this link into your browser:
+              </p>
+              <p style="margin:0 0 24px; font-size:13px; line-height:20px; word-break:break-all;">
+                <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite" style="color:#163345; text-decoration:underline;">{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite</a>
+              </p>
+              <p style="margin:0; font-size:14px; line-height:20px;">
+                The link can only be used once. If it has expired, ask an admin to send you a
+                new invitation. If you weren't expecting this email, you can ignore it.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 40px; background-color:#fbfaf9; border-top:1px solid #ebe7dd; font-family:'Nunito','Segoe UI',Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:#817761; text-align:center;">
+              The Refugee Centre · Le Centre de réfugiés<br>
+              This invitation was sent to {{ .Email }}.
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

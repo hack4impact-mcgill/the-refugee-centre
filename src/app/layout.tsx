@@ -13,6 +13,9 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "The Refugee Centre",
   description: "Volunteer portal for The Refugee Centre",
+  icons: {
+    icon: "/trc-emblem.svg",
+  },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
