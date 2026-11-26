@@ -4,11 +4,9 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { BsPlusCircleFill } from "react-icons/bs";
 import ConfirmDialog from "@/components/confirm-dialog";
+import ActiveFilters from "@/components/active-filters";
+import type { ColumnFilter } from "@/components/column-header-menu";
 import DataTable, { type DataTableColumn } from "@/components/data-table";
-import FilterMenu, {
-  type FilterFieldConfig,
-  type SelectedFilters,
-} from "@/components/filter-menu";
 import SelectionBanner from "@/components/selection-banner";
 import TableToolbar, {
   toolbarButtonClassName,
@@ -44,7 +42,23 @@ type VolunteersTableProps = {
   positionNames: string[];
 };
 
-const COLUMNS: DataTableColumn<VolunteerRecord>[] = [
+type FilterField = "name" | "languages" | "positions";
+type SelectedFilters = Record<FilterField, string[]>;
+
+const NO_FILTERS: SelectedFilters = { name: [], languages: [], positions: [] };
+
+const LANGUAGES = Object.values(Language).sort((a, b) => a.localeCompare(b));
+
+const FILTER_CHIP_LABELS: Record<FilterField, string> = {
+  name: "Name",
+  languages: "Spoken Language",
+  positions: "Position",
+};
+
+const buildColumns = (
+  filterFor: (field: FilterField, options?: string[]) => ColumnFilter,
+  positionNames: string[],
+): DataTableColumn<VolunteerRecord>[] => [
   {
     label: "Name",
     width: "w-[117px]",
@@ -54,52 +68,56 @@ const COLUMNS: DataTableColumn<VolunteerRecord>[] = [
         {v.name}
       </Link>
     ),
+    sortValue: (v) => v.name,
+    filter: filterFor("name"),
   },
-  { label: "Email", width: "w-[198.67px]", render: (v) => v.email },
-  { label: "Phone Number", width: "w-[133px]", render: (v) => v.phone },
+  {
+    label: "Email",
+    width: "w-[198.67px]",
+    render: (v) => v.email,
+    sortValue: (v) => v.email,
+  },
+  {
+    label: "Phone Number",
+    width: "w-[133px]",
+    render: (v) => v.phone,
+    sortValue: (v) => v.phone,
+  },
   {
     label: "Spoken Languages",
     width: "w-[156px]",
     render: (v) => v.languages.join(", "),
+    filter: filterFor("languages", LANGUAGES),
   },
   {
     label: "Positions",
     width: "w-[198.67px]",
     render: (v) => v.positions.map((position) => position.name).join(", "),
+    filter: filterFor("positions", positionNames),
   },
   {
     label: "# Approved Shifts",
     width: "w-[149px]",
     render: (v) => <ShiftHistoryLink volunteer={v} count={v.approvedShifts} />,
+    sortValue: (v) => v.approvedShifts,
   },
   {
     label: "# Refused Shifts",
     width: "w-[149px]",
     render: (v) => <ShiftHistoryLink volunteer={v} count={v.refusedShifts} />,
+    sortValue: (v) => v.refusedShifts,
   },
   {
     label: "Availability",
     width: "w-[149px]",
     render: (v) => v.availability.map(formatAvailabilityWindow).join(", "),
   },
-  { label: "Notes", width: "w-[198.67px]", render: (v) => v.notes },
-];
-
-type FilterField = "name" | "languages" | "positions";
-
-const LANGUAGES = Object.values(Language).sort((a, b) => a.localeCompare(b));
-
-const filterFields = (
-  positionNames: string[],
-): FilterFieldConfig<FilterField>[] => [
-  { field: "name", label: "Name" },
   {
-    field: "languages",
-    label: "Spoken Languages",
-    chipLabel: "Spoken Language",
-    options: LANGUAGES,
+    label: "Notes",
+    width: "w-[198.67px]",
+    render: (v) => v.notes,
+    sortValue: (v) => v.notes,
   },
-  { field: "positions", label: "Positions", options: positionNames },
 ];
 
 const includesIgnoringCase = (values: string[], value: string) =>
@@ -108,7 +126,7 @@ const includesIgnoringCase = (values: string[], value: string) =>
 function matchesFilters(
   volunteer: VolunteerRecord,
   searchQuery: string,
-  filters: SelectedFilters<FilterField>,
+  filters: SelectedFilters,
 ) {
   const volunteerName = volunteer.name.toLowerCase();
   const volunteerPositions = volunteer.positions.map(({ name }) => name);
@@ -143,13 +161,8 @@ export default function VolunteersTable({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, startDeleting] = useTransition();
-  const [selectedFilters, setSelectedFilters] = useState<
-    SelectedFilters<FilterField>
-  >({
-    name: [],
-    languages: [],
-    positions: [],
-  });
+  const [selectedFilters, setSelectedFilters] =
+    useState<SelectedFilters>(NO_FILTERS);
 
   const filteredVolunteers = volunteers.filter((volunteer) =>
     matchesFilters(volunteer, searchQuery, selectedFilters),
@@ -157,10 +170,7 @@ export default function VolunteersTable({
 
   // The selection only ever holds visible rows, so the banner count and the
   // delete never include volunteers the search or filters hide.
-  const applySearchAndFilters = (
-    query: string,
-    filters: SelectedFilters<FilterField>,
-  ) => {
+  const applySearchAndFilters = (query: string, filters: SelectedFilters) => {
     setSearchQuery(query);
     setSelectedFilters(filters);
     const stillVisible = new Set(
@@ -183,6 +193,18 @@ export default function VolunteersTable({
 
   const handleSearch = (query: string) =>
     applySearchAndFilters(query, selectedFilters);
+
+  const filterFor = (field: FilterField, options?: string[]): ColumnFilter => ({
+    options,
+    selected: selectedFilters[field],
+    onToggle: (value) => handleToggleFilter(field, value),
+    onClear: () =>
+      applySearchAndFilters(searchQuery, { ...selectedFilters, [field]: [] }),
+  });
+
+  const hasFilters = Object.values(selectedFilters).some(
+    (values) => values.length > 0,
+  );
 
   // Deletes on the server first; rows only leave the table once that succeeds.
   const handleConfirmDelete = () => {
@@ -232,17 +254,24 @@ export default function VolunteersTable({
           </>
         }
         filters={
-          <FilterMenu
-            fields={filterFields(positionNames)}
-            selectedFilters={selectedFilters}
-            onToggleFilter={handleToggleFilter}
-          />
+          hasFilters && (
+            <ActiveFilters
+              filters={(Object.keys(FILTER_CHIP_LABELS) as FilterField[]).map(
+                (field) => ({
+                  label: FILTER_CHIP_LABELS[field],
+                  values: selectedFilters[field],
+                  onRemove: (value) => handleToggleFilter(field, value),
+                }),
+              )}
+              onClearAll={() => applySearchAndFilters(searchQuery, NO_FILTERS)}
+            />
+          )
         }
       />
 
       <DataTable
         rows={filteredVolunteers}
-        columns={COLUMNS}
+        columns={buildColumns(filterFor, positionNames)}
         getRowId={(volunteer) => volunteer.id}
         getRowHref={(volunteer) => `/volunteers/${volunteer.id}`}
         selection={{
