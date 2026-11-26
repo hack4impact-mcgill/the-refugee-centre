@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import Link from "next/link";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 import {
@@ -11,6 +12,25 @@ import { deleteVolunteers } from "./actions";
 import VolunteersToolbar from "./toolbar";
 import SelectionBanner from "./selection-banner";
 import type { FilterField, SelectedFilters } from "./volunteer-filter-menu";
+
+/** A shift count that opens the volunteer's accepted and refused shifts. */
+function ShiftHistoryLink({
+  volunteer,
+  count,
+}: {
+  volunteer: VolunteerRecord;
+  count: number;
+}) {
+  return (
+    <Link
+      href={`/volunteers/${volunteer.id}/shifts`}
+      aria-label={`${count}, view shift history for ${volunteer.name ?? "unnamed volunteer"}`}
+      className="text-navy-900 underline decoration-sandstone-400 underline-offset-2 hover:decoration-navy-900"
+    >
+      {count}
+    </Link>
+  );
+}
 
 type VolunteersTableProps = {
   initialVolunteers: VolunteerRecord[];
@@ -38,12 +58,12 @@ const COLUMNS: {
   {
     label: "# Approved Shifts",
     width: "w-[149px]",
-    render: (v) => v.approvedShifts,
+    render: (v) => <ShiftHistoryLink volunteer={v} count={v.approvedShifts} />,
   },
   {
     label: "# Refused Shifts",
     width: "w-[149px]",
-    render: (v) => v.refusedShifts,
+    render: (v) => <ShiftHistoryLink volunteer={v} count={v.refusedShifts} />,
   },
   {
     label: "Availability",

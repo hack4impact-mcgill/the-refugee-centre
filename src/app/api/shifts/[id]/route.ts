@@ -46,9 +46,22 @@ export async function PATCH(
   }
 }
 
-/** Deletes a shift. */
+/** Body of the 409 DELETE returns when it needs `?confirm=true`. */
+export type DeleteConfirmationRequired = {
+  error: string;
+  code: "confirmation_required";
+  /** Volunteers who accepted or refused the shift. */
+  affectedVolunteers: number;
+};
+
+/**
+ * Deletes a shift, with its assignments. A shift that has started and that
+ * volunteers accepted or refused is only deleted with `?confirm=true`, since
+ * that also removes it from their accepted and refused counts; without it,
+ * responds 409 with a `DeleteConfirmationRequired` body.
+ */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   ctx: RouteContext<"/api/shifts/[id]">,
 ) {
   if (!(await isSignedIn())) return unauthorized();
@@ -56,6 +69,35 @@ export async function DELETE(
   const { id } = await ctx.params;
   if (!shiftIdSchema.safeParse(id).success) {
     return Response.json(NOT_FOUND, { status: 404 });
+  }
+
+  if (request.nextUrl.searchParams.get("confirm") !== "true") {
+    const shift = await prisma.shift.findUnique({
+      where: { id },
+      select: {
+        startTime: true,
+        _count: {
+          select: {
+            assignments: {
+              where: { status: { in: ["ACCEPTED", "REJECTED"] } },
+            },
+          },
+        },
+      },
+    });
+    if (!shift) return Response.json(NOT_FOUND, { status: 404 });
+
+    const affectedVolunteers = shift._count.assignments;
+    if (shift.startTime <= new Date() && affectedVolunteers > 0) {
+      return Response.json(
+        {
+          error: "This shift has started and volunteers responded to it.",
+          code: "confirmation_required",
+          affectedVolunteers,
+        } satisfies DeleteConfirmationRequired,
+        { status: 409 },
+      );
+    }
   }
 
   // deleteMany reports a count instead of throwing when nothing matched.

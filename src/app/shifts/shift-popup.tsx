@@ -40,6 +40,11 @@ type ShiftPopupProps = {
   onSave: () => void;
   onDelete: () => void;
   onDiscard: () => void;
+  /**
+   * While true (e.g. a confirmation dialog is open over the popup), Escape and
+   * outside clicks don't discard the draft, so they reach the dialog instead.
+   */
+  suspended?: boolean;
 };
 
 export default function ShiftPopup({
@@ -49,6 +54,7 @@ export default function ShiftPopup({
   onSave,
   onDelete,
   onDiscard,
+  suspended = false,
 }: ShiftPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -104,6 +110,7 @@ export default function ShiftPopup({
 
   // Escape or a click anywhere else discards the draft, like Google Calendar.
   useEffect(() => {
+    if (suspended) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onDiscard();
     }
@@ -117,7 +124,7 @@ export default function ShiftPopup({
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [onDiscard]);
+  }, [onDiscard, suspended]);
 
   return (
     <div

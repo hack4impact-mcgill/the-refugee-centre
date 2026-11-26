@@ -62,3 +62,71 @@ export async function getVolunteerTableData(): Promise<{
     positionNames: positions.map(({ name }) => name),
   };
 }
+
+export type ShiftHistoryEntry = {
+  shiftId: string;
+  title: string;
+  startTime: Date;
+  endTime: Date;
+  allDay: boolean;
+  respondedAt: Date | null;
+};
+
+/**
+ * The shifts a volunteer accepted and refused, most recent first. Returns null
+ * when there is no such volunteer. Redirects signed-out users to /login.
+ */
+export async function getVolunteerShiftHistory(volunteerId: string): Promise<{
+  name: string | null;
+  accepted: ShiftHistoryEntry[];
+  refused: ShiftHistoryEntry[];
+} | null> {
+  if (!(await isSignedIn())) redirect("/login");
+
+  const volunteer = await prisma.volunteer.findUnique({
+    where: { id: volunteerId },
+    select: {
+      name: true,
+      assignments: {
+        where: { status: { in: ["ACCEPTED", "REJECTED"] } },
+        orderBy: { shift: { startTime: "desc" } },
+        select: {
+          status: true,
+          respondedAt: true,
+          shift: {
+            select: {
+              id: true,
+              title: true,
+              startTime: true,
+              endTime: true,
+              allDay: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!volunteer) return null;
+
+  const entries = volunteer.assignments.map(
+    ({ status, respondedAt, shift }) => ({
+      status,
+      entry: {
+        shiftId: shift.id,
+        title: shift.title,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        allDay: shift.allDay,
+        respondedAt,
+      },
+    }),
+  );
+
+  return {
+    name: volunteer.name,
+    accepted: entries
+      .filter((e) => e.status === "ACCEPTED")
+      .map((e) => e.entry),
+    refused: entries.filter((e) => e.status === "REJECTED").map((e) => e.entry),
+  };
+}
