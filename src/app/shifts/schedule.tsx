@@ -18,6 +18,8 @@ import interactionPlugin from "@fullcalendar/react/interaction";
 import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
+import type { DeleteConfirmationRequired } from "@/app/api/shifts/[id]/route";
+import ConfirmDialog from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 import {
   EMPTY_SHIFT_DETAILS,
@@ -25,7 +27,6 @@ import {
   detailsOf,
   eventOf,
   inputOf,
-  inputOfEvent,
   shiftEventClass,
   summarizeShift,
   type ShiftDraft,
@@ -72,11 +73,23 @@ async function saveShift(input: ShiftInput, id?: string) {
   return eventOf(await response.json());
 }
 
-async function removeShift(id: string) {
-  const response = await fetch(`/api/shifts/${id}`, { method: "DELETE" });
+/**
+ * Returns the number of volunteers affected when the server wants a second
+ * confirmation (the shift has started and volunteers responded), else null.
+ */
+async function removeShift(id: string, { confirm = false } = {}) {
+  const response = await fetch(
+    `/api/shifts/${id}${confirm ? "?confirm=true" : ""}`,
+    { method: "DELETE" },
+  );
+  if (response.status === 409) {
+    const body: DeleteConfirmationRequired = await response.json();
+    return body.affectedVolunteers;
+  }
   if (!response.ok && response.status !== 404) {
     throw new Error(await response.text());
   }
+  return null;
 }
 
 // View docs for FullCalendar callback functions: https://fullcalendar.io/docs/event-dragging-resizing
@@ -88,6 +101,10 @@ export default function Schedule() {
   const [draft, setDraft] = useState<ShiftDraft | null>(null);
   const [pending, setPending] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Set when deleting the open shift needs a second confirmation.
+  const [confirmingDelete, setConfirmingDelete] = useState<{
+    affectedVolunteers: number;
+  } | null>(null);
   const loadController = useRef<AbortController | null>(null);
 
   async function loadShifts(info: DatesSetInfo) {
@@ -199,6 +216,7 @@ export default function Schedule() {
   function discardDraft() {
     draft?.revert?.();
     setDraft(null);
+    setConfirmingDelete(null);
   }
 
   function addShift(shift: ShiftEvent) {
@@ -215,21 +233,9 @@ export default function Schedule() {
     setShifts((current) => current.filter((shift) => shift.id !== id));
   }
 
-  async function undo(change: () => Promise<void>, done: string) {
-    try {
-      await change();
-      setError(null);
-      toast.success(done);
-    } catch (err) {
-      console.error(err);
-      setError("Couldn't undo that change.");
-    }
-  }
-
   async function saveDraft() {
     if (!draft || pending) return;
     setPending("save");
-    const previous = shifts.find((shift) => shift.id === draft.id);
     try {
       const saved = await saveShift(
         inputOf(draft),
@@ -242,28 +248,11 @@ export default function Schedule() {
         addShift(saved);
         toast.success("Shift created", {
           description: summarizeShift(saved),
-          action: {
-            label: "Undo",
-            onClick: () =>
-              undo(async () => {
-                await removeShift(saved.id);
-                dropShift(saved.id);
-              }, "Shift removed"),
-          },
         });
       } else {
         replaceShift(saved);
         toast.success("Shift updated", {
           description: summarizeShift(saved),
-          action: previous && {
-            label: "Undo",
-            onClick: () =>
-              undo(async () => {
-                replaceShift(
-                  await saveShift(inputOfEvent(previous), previous.id),
-                );
-              }, "Changes undone"),
-          },
         });
       }
     } catch (err) {
@@ -274,29 +263,27 @@ export default function Schedule() {
     }
   }
 
-  async function deleteDraft() {
+  async function deleteDraft({ confirm = false } = {}) {
     if (!draft || draft.isNew || pending) return;
     setPending("delete");
     const deleted = shifts.find((shift) => shift.id === draft.id);
     try {
-      await removeShift(draft.id);
+      const affected = await removeShift(draft.id, { confirm });
+      if (affected !== null) {
+        setConfirmingDelete({ affectedVolunteers: affected });
+        return;
+      }
+      setConfirmingDelete(null);
       dropShift(draft.id);
       setDraft(null);
       setError(null);
 
       toast.success("Shift deleted", {
         description: deleted && summarizeShift(deleted),
-        // Undo saves it again as a new shift, with a new id.
-        action: deleted && {
-          label: "Undo",
-          onClick: () =>
-            undo(async () => {
-              addShift(await saveShift(inputOfEvent(deleted)));
-            }, "Shift restored"),
-        },
       });
     } catch (err) {
       console.error(err);
+      setConfirmingDelete(null);
       setError("Couldn't delete the shift. Try again.");
     } finally {
       setPending(null);
@@ -442,10 +429,27 @@ export default function Schedule() {
           }
           pending={pending}
           onSave={saveDraft}
-          onDelete={deleteDraft}
+          onDelete={() => deleteDraft()}
           onDiscard={discardDraft}
+          suspended={confirmingDelete !== null}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmingDelete !== null}
+        variant="danger"
+        title="Delete a past shift?"
+        message={`This shift has already started, and ${
+          confirmingDelete?.affectedVolunteers === 1
+            ? "1 volunteer"
+            : `${confirmingDelete?.affectedVolunteers} volunteers`
+        } accepted or refused it. Deleting it removes it from their accepted and refused shift counts. This can't be undone.`}
+        confirmLabel="Yes, delete shift"
+        pendingLabel="Deleting…"
+        pending={pending === "delete"}
+        onConfirm={() => deleteDraft({ confirm: true })}
+        onCancel={() => setConfirmingDelete(null)}
+      />
     </>
   );
 }

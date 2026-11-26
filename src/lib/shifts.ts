@@ -64,16 +64,6 @@ export function eventOf(shift: ShiftRecord): ShiftEvent {
   };
 }
 
-export function inputOfEvent(event: ShiftEvent): ShiftInput {
-  return {
-    ...event.extendedProps,
-    title: event.title,
-    startTime: event.start,
-    endTime: event.end,
-    allDay: event.allDay,
-  };
-}
-
 /** Used in shift pop up to find event on the page for anchoring */
 export function shiftEventClass(id: string) {
   return `shift-${id}`;

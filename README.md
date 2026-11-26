@@ -40,6 +40,12 @@ Set up the local database (first time only, see [Database](#database) below):
    npx prisma db push
    ```
 
+3. Optionally, fill it with sample volunteers, positions and past shifts. This is safe to re-run, and it refuses to run on any database other than the local `trc` one:
+
+   ```bash
+   npm run db:seed
+   ```
+
 Run the development server:
 
 ```bash
@@ -79,9 +85,22 @@ To use different values on your machine only, set the same variable in `.env.loc
 ```bash
 npm run db:up               # Start Postgres in the background (waits until it's ready)
 npm run db:down             # Stop it; the data is kept
+npm run db:seed             # Add (or reset) the sample data described below
 docker compose down -v      # Stop it and delete all local data (then run `npx prisma db push` again)
 docker compose logs db      # See Postgres logs if something won't connect
 ```
+
+##### Sample data
+
+`npm run db:seed` runs [`prisma/seed.sql`](prisma/seed.sql), which adds:
+
+- 3 positions: Receptionist, Portal Workshop Assistant and French Conversation Circle Leader
+- 8 volunteers, with languages, positions, weekly availability and notes. One has no positions or availability, and one has only a name and an email, to show how sparse rows look
+- 5 past shifts in October 2026 (so they don't crowd the current week in the calendar), with shift offers in every status. The volunteers table shows each volunteer's approved and refused counts from these
+
+You can run it again at any time. It deletes the rows it added last time (they have fixed ids starting with `5eed0000`) and inserts them again, without touching anything you added yourself. It refuses to run on any database other than the local `trc` one, so it can't write to Supabase. The emails use `example.com` and the phone numbers use the fictional 555-01xx range.
+
+The seed is plain SQL, so if you rename or add a required column on one of these tables, update `prisma/seed.sql` in the same PR. `npm run db:seed` fails if it no longer matches the schema.
 
 If `npm run db:up` fails because port 5432 is already in use, you already have Postgres installed on your machine. Either stop that service, or change the left side of `"5432:5432"` in `docker-compose.yml` (for example to `"5433:5432"`) and set both URLs with that port in your `.env.local`
 

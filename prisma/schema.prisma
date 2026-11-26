@@ -10,14 +10,13 @@ datasource db {
 }
 
 model Volunteer {
-  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  name           String?
-  phone          String?
-  email          String?    @unique
-  approvedShifts Int?       @default(0) @map("approved_shifts")
-  refusedShifts  Int?       @default(0) @map("refused_shifts")
-  languages      Language[] @default([])
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  name      String
+  phone     String?
+  email     String?    @unique
+  languages Language[] @default([])
+  notes     String?
 
   assignments  ShiftAssignment[]
   positions    VolunteerPosition[]
@@ -101,7 +100,7 @@ model ShiftAssignment {
   shift     Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
 
   @@unique([shiftId, volunteerId])
-  @@index([volunteerId])
+  @@index([volunteerId, status])
   @@map("shift_assignments")
 }
 
