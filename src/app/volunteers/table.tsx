@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 import {
@@ -42,7 +43,16 @@ const COLUMNS: {
   width: string;
   render: (volunteer: VolunteerRecord) => ReactNode;
 }[] = [
-  { label: "Name", width: "w-[117px]", render: (v) => v.name },
+  {
+    label: "Name",
+    width: "w-[117px]",
+    // The row opens the profile on click; this link is the same for keyboards.
+    render: (v) => (
+      <Link href={`/volunteers/${v.id}`} className="hover:underline">
+        {v.name ?? <span className="sr-only">Unnamed volunteer</span>}
+      </Link>
+    ),
+  },
   { label: "Email", width: "w-[198.67px]", render: (v) => v.email },
   { label: "Phone Number", width: "w-[133px]", render: (v) => v.phone },
   {
@@ -112,6 +122,7 @@ export default function VolunteersTable({
   initialVolunteers,
   positionNames,
 }: VolunteersTableProps) {
+  const router = useRouter();
   const [volunteers, setVolunteers] = useState(initialVolunteers);
   // The search only applies on Enter, so the typed text and the applied query
   // are kept apart.
@@ -243,12 +254,19 @@ export default function VolunteersTable({
               return (
                 <tr
                   key={volunteer.id}
-                  className={`border-b border-sandstone-300 h-[35px] transition-colors ${
+                  onClick={(event) => {
+                    // Links, the checkbox and its cell keep their own behaviour.
+                    const target = event.target as HTMLElement;
+                    if (target.closest("a, input, button, [data-no-row-click]"))
+                      return;
+                    router.push(`/volunteers/${volunteer.id}`);
+                  }}
+                  className={`border-b border-sandstone-300 h-[35px] cursor-pointer transition-colors ${
                     isChecked ? "bg-[#C4D5E0]" : "bg-white hover:bg-navy-200"
                   }`}
                 >
-                  <td></td>
-                  <td className="p-2">
+                  <td data-no-row-click></td>
+                  <td data-no-row-click className="p-2">
                     <input
                       type="checkbox"
                       aria-label={`Select ${volunteer.name ?? "unnamed volunteer"}`}

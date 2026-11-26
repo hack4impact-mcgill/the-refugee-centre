@@ -53,6 +53,25 @@ export function toAvailabilityWindows(availability: DraftAvailability) {
 
 let nextKey = 0;
 
+/** The reverse of `toAvailabilityWindows`, to edit saved windows. */
+export function fromAvailabilityWindows(
+  windows: { day: DayOfWeek; startMinute: number; endMinute: number }[],
+): DraftAvailability {
+  const availability = emptyAvailability();
+  for (const { day, startMinute, endMinute } of windows) {
+    availability[day].push({
+      key: nextKey++,
+      start: minutesToTime(startMinute),
+      // Midnight at the end of the day shows as 00:00, which saving reads back.
+      end: minutesToTime(endMinute),
+    });
+  }
+  for (const day of DAYS) {
+    availability[day].sort((a, b) => a.start.localeCompare(b.start));
+  }
+  return availability;
+}
+
 function nextWindowTimes(windows: DraftWindow[]) {
   const last = windows.at(-1);
   if (!last) return { start: "09:00", end: "17:00" };

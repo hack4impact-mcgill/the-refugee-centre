@@ -1,9 +1,76 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isSignedIn } from "@/lib/supabase/server";
 import type { VolunteerRecord } from "@/lib/volunteers";
+
+/** The fields a `VolunteerRecord` is built from, besides the shift counts. */
+const volunteerSelect = {
+  id: true,
+  createdAt: true,
+  name: true,
+  email: true,
+  phone: true,
+  languages: true,
+  notes: true,
+  positions: {
+    select: { position: { select: { id: true, name: true } } },
+    orderBy: { position: { name: "asc" } },
+  },
+  availability: {
+    select: { day: true, startMinute: true, endMinute: true },
+    orderBy: [{ day: "asc" }, { startMinute: "asc" }],
+  },
+} satisfies Prisma.VolunteerSelect;
+
+type SelectedVolunteer = Prisma.VolunteerGetPayload<{
+  select: typeof volunteerSelect;
+}>;
+
+type ShiftCountOf = (
+  volunteerId: string,
+  status: "ACCEPTED" | "REJECTED",
+) => number;
+
+/** Counts accepted and refused shift offers, per volunteer. */
+async function countShifts(
+  where: Prisma.ShiftAssignmentWhereInput = {},
+): Promise<ShiftCountOf> {
+  const counts = await prisma.shiftAssignment.groupBy({
+    by: ["volunteerId", "status"],
+    where: { ...where, status: { in: ["ACCEPTED", "REJECTED"] } },
+    _count: { _all: true },
+  });
+  return (volunteerId, status) =>
+    counts.find(
+      (count) => count.volunteerId === volunteerId && count.status === status,
+    )?._count._all ?? 0;
+}
+
+function toRecord(
+  volunteer: SelectedVolunteer,
+  countOf: ShiftCountOf,
+): VolunteerRecord {
+  return {
+    ...volunteer,
+    positions: volunteer.positions.map(({ position }) => position),
+    approvedShifts: countOf(volunteer.id, "ACCEPTED"),
+    refusedShifts: countOf(volunteer.id, "REJECTED"),
+  };
+}
+
+/** Every position, alphabetically, for pickers and filters. */
+export async function getPositionOptions() {
+  if (!(await isSignedIn())) redirect("/login");
+
+  return prisma.position.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
 
 /**
  * Loads everything the volunteers table needs: all volunteers alphabetically,
@@ -15,52 +82,45 @@ export async function getVolunteerTableData(): Promise<{
 }> {
   if (!(await isSignedIn())) redirect("/login");
 
-  const [volunteers, shiftCounts, positions] = await Promise.all([
+  const [volunteers, countOf, positions] = await Promise.all([
     prisma.volunteer.findMany({
       orderBy: { name: "asc" },
-      select: {
-        id: true,
-        createdAt: true,
-        name: true,
-        email: true,
-        phone: true,
-        languages: true,
-        notes: true,
-        positions: {
-          select: { position: { select: { id: true, name: true } } },
-          orderBy: { position: { name: "asc" } },
-        },
-        availability: {
-          select: { day: true, startMinute: true, endMinute: true },
-          orderBy: [{ day: "asc" }, { startMinute: "asc" }],
-        },
-      },
+      select: volunteerSelect,
     }),
-    prisma.shiftAssignment.groupBy({
-      by: ["volunteerId", "status"],
-      where: { status: { in: ["ACCEPTED", "REJECTED"] } },
-      _count: { _all: true },
-    }),
-    prisma.position.findMany({
-      orderBy: { name: "asc" },
-      select: { name: true },
-    }),
+    countShifts(),
+    getPositionOptions(),
   ]);
 
-  const countOf = (volunteerId: string, status: "ACCEPTED" | "REJECTED") =>
-    shiftCounts.find(
-      (count) => count.volunteerId === volunteerId && count.status === status,
-    )?._count._all ?? 0;
-
   return {
-    volunteers: volunteers.map((volunteer) => ({
-      ...volunteer,
-      positions: volunteer.positions.map(({ position }) => position),
-      approvedShifts: countOf(volunteer.id, "ACCEPTED"),
-      refusedShifts: countOf(volunteer.id, "REJECTED"),
-    })),
+    volunteers: volunteers.map((volunteer) => toRecord(volunteer, countOf)),
     positionNames: positions.map(({ name }) => name),
   };
+}
+
+/**
+ * Volunteer ids are UUIDs, and Postgres rejects anything else in a uuid
+ * column, so other ids (e.g. a mistyped URL) are treated as not found.
+ */
+const isVolunteerId = (id: string) => z.uuid().safeParse(id).success;
+
+/**
+ * One volunteer, for their profile and edit pages. Returns null when there is
+ * no such volunteer. Redirects signed-out users to /login.
+ */
+export async function getVolunteerProfile(
+  volunteerId: string,
+): Promise<VolunteerRecord | null> {
+  if (!(await isSignedIn())) redirect("/login");
+  if (!isVolunteerId(volunteerId)) return null;
+
+  const [volunteer, countOf] = await Promise.all([
+    prisma.volunteer.findUnique({
+      where: { id: volunteerId },
+      select: volunteerSelect,
+    }),
+    countShifts({ volunteerId }),
+  ]);
+  return volunteer && toRecord(volunteer, countOf);
 }
 
 export type ShiftHistoryEntry = {
@@ -82,6 +142,7 @@ export async function getVolunteerShiftHistory(volunteerId: string): Promise<{
   refused: ShiftHistoryEntry[];
 } | null> {
   if (!(await isSignedIn())) redirect("/login");
+  if (!isVolunteerId(volunteerId)) return null;
 
   const volunteer = await prisma.volunteer.findUnique({
     where: { id: volunteerId },

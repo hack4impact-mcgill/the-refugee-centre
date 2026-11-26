@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BsArrowLeft } from "react-icons/bs";
-import { z } from "zod";
 import { RANKING_CONFIG } from "@/lib/ranking/config";
 import {
   getVolunteerShiftHistory,
@@ -70,10 +69,7 @@ function ShiftList({
 export default async function VolunteerShiftsPage({
   params,
 }: PageProps<"/volunteers/[id]/shifts">) {
-  const { id } = await params;
-  if (!z.uuid().safeParse(id).success) notFound();
-
-  const history = await getVolunteerShiftHistory(id);
+  const history = await getVolunteerShiftHistory((await params).id);
   if (!history) notFound();
 
   return (

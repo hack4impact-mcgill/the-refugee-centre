@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { isSignedIn } from "@/lib/supabase/server";
-import VolunteerForm from "./volunteer-form";
+import { getPositionOptions } from "@/lib/volunteers.server";
+import VolunteerForm from "../volunteer-form";
 
 export const metadata: Metadata = {
   title: "Add volunteer | The Refugee Centre",
 };
 
 export default async function NewVolunteerPage() {
-  if (!(await isSignedIn())) redirect("/login");
-
-  const positions = await prisma.position.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const positions = await getPositionOptions();
 
   return (
     <div className="flex min-h-full flex-col">

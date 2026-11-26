@@ -12,14 +12,20 @@ import { useRouter } from "next/navigation";
 import { BsSaveFill } from "react-icons/bs";
 import { Language } from "@/generated/prisma/enums";
 import { toast } from "@/components/toast";
-import { createVolunteer, type CreateVolunteerState } from "../actions";
+import MultiSelect from "@/components/multi-select";
+import type { VolunteerRecord } from "@/lib/volunteers";
+import {
+  createVolunteer,
+  updateVolunteer,
+  type VolunteerFormState,
+} from "./actions";
 import AvailabilityEditor, {
-  emptyAvailability,
+  fromAvailabilityWindows,
   toAvailabilityWindows,
 } from "./availability-editor";
-import MultiSelect from "@/components/multi-select";
+import { headerActionClassName, nameBarClassName } from "./styles";
 
-const initialState: CreateVolunteerState = {
+const initialState: VolunteerFormState = {
   status: "idle",
   message: "",
   fieldErrors: {},
@@ -78,24 +84,38 @@ function TextField({
   );
 }
 
+/**
+ * The add-volunteer form, or with `volunteer`, the edit form for that
+ * volunteer, filled in with their current details.
+ */
 export default function VolunteerForm({
   positions,
+  volunteer,
 }: {
   positions: { id: string; name: string }[];
+  volunteer?: VolunteerRecord;
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [languages, setLanguages] = useState<Language[]>([]);
-  const [positionIds, setPositionIds] = useState<string[]>([]);
-  const [availability, setAvailability] = useState(emptyAvailability);
+  const [name, setName] = useState(volunteer?.name ?? "");
+  const [languages, setLanguages] = useState<Language[]>(
+    volunteer?.languages ?? [],
+  );
+  const [positionIds, setPositionIds] = useState<string[]>(
+    volunteer?.positions.map(({ id }) => id) ?? [],
+  );
+  const [availability, setAvailability] = useState(() =>
+    fromAvailabilityWindows(volunteer?.availability ?? []),
+  );
   const [availabilityError, setAvailabilityError] = useState<string>();
 
   const [state, formAction, pending] = useActionState(
-    async (prevState: CreateVolunteerState, formData: FormData) => {
-      const result = await createVolunteer(prevState, formData);
+    async (prevState: VolunteerFormState, formData: FormData) => {
+      const result = volunteer
+        ? await updateVolunteer(volunteer.id, prevState, formData)
+        : await createVolunteer(prevState, formData);
       if (result.status === "success") {
         toast.success(result.message);
-        router.push("/volunteers");
+        router.push(volunteer ? `/volunteers/${volunteer.id}` : "/volunteers");
       }
       return result;
     },
@@ -132,14 +152,14 @@ export default function VolunteerForm({
       aria-labelledby="volunteer-form-heading"
       className="flex flex-col"
     >
-      <div className="flex items-center justify-between gap-4 border-b border-sandstone-300 px-8 py-4">
+      <div className={nameBarClassName}>
         <h2 id="volunteer-form-heading" className="truncate text-h5">
-          {name.trim() || "New volunteer"}
+          {name.trim() || (volunteer ? "Unnamed volunteer" : "New volunteer")}
         </h2>
         <button
           type="submit"
           disabled={pending || state.status === "success"}
-          className="flex h-9.5 shrink-0 cursor-pointer items-center gap-2.5 rounded-lg bg-navy-900 px-2.5 py-2 text-body1 text-white transition-colors hover:bg-navy-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-700 disabled:cursor-wait disabled:opacity-70"
+          className={headerActionClassName}
         >
           <BsSaveFill aria-hidden className="size-5" />
           {pending ? "Saving…" : "Save profile"}
@@ -168,6 +188,7 @@ export default function VolunteerForm({
           label="Email"
           type="email"
           autoComplete="off"
+          defaultValue={volunteer?.email ?? ""}
           error={fieldErrors.email}
         />
         <TextField
@@ -176,6 +197,7 @@ export default function VolunteerForm({
           type="tel"
           autoComplete="off"
           placeholder="+1 (XXX) XXX-XXXX"
+          defaultValue={volunteer?.phone ?? ""}
           error={fieldErrors.phone}
         />
 
@@ -219,6 +241,7 @@ export default function VolunteerForm({
             name="notes"
             rows={3}
             placeholder="Enter a note here..."
+            defaultValue={volunteer?.notes ?? ""}
             className={`${inputClassName} resize-y`}
           />
         </FormField>
