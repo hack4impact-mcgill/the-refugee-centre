@@ -12,14 +12,11 @@ import { useRouter } from "next/navigation";
 import { BsSaveFill } from "react-icons/bs";
 import { Language } from "@/generated/prisma/enums";
 import { toast } from "@/components/toast";
-import {
-  createVolunteer,
-  type CreateVolunteerState,
-} from "@/app/volunteers/actions";
+import { createVolunteer, type CreateVolunteerState } from "./actions";
 import AvailabilityEditor, {
   emptyAvailability,
   toAvailabilityWindows,
-} from "@/app/volunteers/availability-editor";
+} from "./availability-editor";
 import MultiSelect from "@/components/multi-select";
 
 const initialState: CreateVolunteerState = {

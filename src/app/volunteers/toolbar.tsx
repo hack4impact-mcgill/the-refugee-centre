@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { BsSearch, BsPlusCircleFill } from "react-icons/bs";
-import VolunteerFilterMenu from "./volunteer-filter-menu";
+import VolunteerFilterMenu, {
+  type FilterField,
+  type SelectedFilters,
+} from "./volunteer-filter-menu";
 
 type VolunteersToolbarProps = {
   searchInput: string;
   setSearchInput: (value: string) => void;
   setSearchQuery: (value: string) => void;
-  selectedFilters: Record<"name" | "languages" | "positions", string[]>;
-  onToggleFilter: (
-    field: "name" | "languages" | "positions",
-    value: string,
-  ) => void;
+  selectedFilters: SelectedFilters;
+  onToggleFilter: (field: FilterField, value: string) => void;
   positionNames: string[];
 };
 
@@ -38,7 +38,7 @@ export default function VolunteersToolbar({
                 setSearchQuery(searchInput);
               }
             }}
-            className="w-full bg-transparent outline-none text-[16px] leading-[18px] tracking-[-0.006em] text-navy-900 placeholder:text-sandstone-500"
+            className="w-full bg-transparent outline-none text-body1 text-navy-900 placeholder:text-sandstone-500"
           />
         </div>
 

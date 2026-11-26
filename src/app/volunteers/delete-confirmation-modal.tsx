@@ -14,14 +14,13 @@ export default function DeleteConfirmationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000000]/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-dialog-title"
         className="flex w-[303px] flex-col gap-6 rounded-lg border border-sandstone-400 bg-white p-4 shadow-[0_4px_10px_0_#0000001A]"
       >
-        {/* Title and description */}
         <div className="flex flex-col gap-2 text-center">
           <h2
             id="delete-dialog-title"
@@ -32,7 +31,7 @@ export default function DeleteConfirmationModal({
               : "Delete these profiles?"}
           </h2>
 
-          <p className="text-[16px] leading-[18px] tracking-[-0.006em] text-black">
+          <p className="text-body1 text-black">
             Are you sure you want to delete{" "}
             {selectedCount === 1
               ? "this profile"
@@ -41,12 +40,11 @@ export default function DeleteConfirmationModal({
           </p>
         </div>
 
-        {/* Buttons */}
         <div className="flex items-center justify-center gap-6">
           <button
             type="button"
             onClick={onCancel}
-            className="flex h-[26px] items-center justify-center whitespace-nowrap rounded-[4px] border border-[#163445] px-[10px] text-[14px] text-[#163445] cursor-pointer"
+            className="flex h-[26px] items-center justify-center whitespace-nowrap rounded-[4px] border border-navy-900 px-[10px] text-[14px] text-navy-900 cursor-pointer"
           >
             Cancel
           </button>
@@ -54,7 +52,7 @@ export default function DeleteConfirmationModal({
           <button
             type="button"
             onClick={onConfirm}
-            className="flex h-[26px] items-center justify-center whitespace-nowrap rounded-[4px] bg-[#E84545] px-[10px] text-[14px] text-white cursor-pointer"
+            className="flex h-[26px] items-center justify-center whitespace-nowrap rounded-[4px] bg-danger px-[10px] text-[14px] text-white cursor-pointer"
           >
             {selectedCount === 1
               ? "Yes, delete profile"

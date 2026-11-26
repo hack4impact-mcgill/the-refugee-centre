@@ -10,9 +10,11 @@ import {
 import { FaFilter } from "react-icons/fa";
 import { Language } from "@/generated/prisma/enums";
 
-type FilterField = "name" | "languages" | "positions";
+export type FilterField = "name" | "languages" | "positions";
+export type SelectedFilters = Record<FilterField, string[]>;
+
 type VolunteerFilterMenuProps = {
-  selectedFilters: Record<FilterField, string[]>;
+  selectedFilters: SelectedFilters;
   onToggleFilter: (field: FilterField, value: string) => void;
   positionNames: string[];
 };
@@ -30,11 +32,8 @@ export default function VolunteerFilterMenu({
   onToggleFilter,
   positionNames,
 }: VolunteerFilterMenuProps) {
-  // is the dropdown visible
   const [isOpen, setIsOpen] = useState(false);
-  // which filter category is open (main menu, languages, or positions)
   const [activeField, setActiveField] = useState<FilterField | null>(null);
-  // what the user types inside the dropdown
   const [filterSearch, setFilterSearch] = useState("");
 
   const openField = (field: FilterField) => {
@@ -56,7 +55,6 @@ export default function VolunteerFilterMenu({
 
   return (
     <div className="relative flex items-center gap-2">
-      {/* selected filters */}
       {FILTER_FIELDS.map(({ field, label }) => {
         const values = selectedFilters[field];
 
@@ -97,15 +95,11 @@ export default function VolunteerFilterMenu({
         );
       })}
 
-      {/* add filter button */}
       <button
         type="button"
         onClick={() => {
-          // opens or closes the dropdown
           setIsOpen(!isOpen);
-          // ret to main category menu
           setActiveField(null);
-          // clear the dropdown search
           setFilterSearch("");
         }}
         className={`flex h-[28px] items-center justify-center gap-[6px] rounded-full px-[10px] text-[14px] text-navy-900 cursor-pointer ${
@@ -116,10 +110,8 @@ export default function VolunteerFilterMenu({
         <span>Add filter</span>
       </button>
 
-      {/* dropdown */}
       {isOpen && (
         <div className="absolute top-full left-0 z-40 w-[458px] max-w-[calc(100vw-64px)] pt-1">
-          {/* search field */}
           <div className="flex h-[40px] items-center rounded-t-lg border border-sandstone-300 bg-white px-3 py-2">
             <input
               type="text"
@@ -140,11 +132,10 @@ export default function VolunteerFilterMenu({
                   setFilterSearch("");
                 }
               }}
-              className="w-full bg-transparent text-[16px] leading-[18px] tracking-[-0.006em] text-navy-900 placeholder:text-sandstone-500 outline-none"
+              className="w-full bg-transparent text-body1 text-navy-900 placeholder:text-sandstone-500 outline-none"
             />
           </div>
 
-          {/* menu */}
           <div className="max-h-[350px] overflow-y-auto rounded-b-lg border-x border-b border-sandstone-300 bg-white py-1">
             {activeField === null ? (
               FILTER_FIELDS.filter(({ label }) =>
@@ -154,7 +145,7 @@ export default function VolunteerFilterMenu({
                   key={field}
                   type="button"
                   onClick={() => openField(field)}
-                  className="flex h-[38px] w-full items-center justify-between px-3 py-2 text-left text-[16px] leading-[18px] tracking-[-0.006em] text-navy-900 hover:bg-sandstone-200 cursor-pointer"
+                  className="flex h-[38px] w-full items-center justify-between px-3 py-2 text-left text-body1 text-navy-900 hover:bg-sandstone-200 cursor-pointer"
                 >
                   {label}
                   {field !== "name" && (
@@ -172,7 +163,7 @@ export default function VolunteerFilterMenu({
                   key={option}
                   type="button"
                   onClick={() => onToggleFilter(activeField, option)}
-                  className="flex h-[38px] w-full items-center justify-between px-3 py-2 text-left text-[16px] leading-[18px] tracking-[-0.006em] text-navy-900 hover:bg-sandstone-200 cursor-pointer"
+                  className="flex h-[38px] w-full items-center justify-between px-3 py-2 text-left text-body1 text-navy-900 hover:bg-sandstone-200 cursor-pointer"
                 >
                   <span>{option}</span>
 

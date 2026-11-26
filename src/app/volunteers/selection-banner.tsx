@@ -20,7 +20,7 @@ export default function SelectionBanner({
       <button
         type="button"
         onClick={onDelete}
-        className="flex h-[32px] items-center justify-center gap-[6px] rounded-[4px] bg-[#E84545] px-[10px] text-[14px] leading-none text-white cursor-pointer"
+        className="flex h-[32px] items-center justify-center gap-[6px] rounded-[4px] bg-danger px-[10px] text-[14px] leading-none text-white cursor-pointer"
       >
         <FaTrashAlt className="h-4 w-4" />
         <span>Delete</span>
