@@ -11,6 +11,53 @@ const optionalText = z
   .trim()
   .transform((value) => value || null);
 
+/**
+ * Accepts a phone number in any common format and stores it as
+ * `+1 (514) 555-0101`. Numbers with a country code other than +1 are kept as
+ * `+` followed by their digits, since their grouping differs by country.
+ */
+const phoneSchema = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    if (!value) return null;
+    const phone = formatPhone(value);
+    if (!phone) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Enter a 10-digit phone number, e.g. +1 (514) 555-0101.",
+      });
+      return z.NEVER;
+    }
+    return phone;
+  });
+
+function formatPhone(value: string): string | null {
+  if (/[^\d\s()+.\-]/.test(value)) return null;
+  const digits = value.replace(/\D/g, "");
+  const international = value.startsWith("+") || value.startsWith("00");
+  const local = digits.startsWith("00") ? digits.slice(2) : digits;
+
+  const nanp =
+    local.length === 10 && !international
+      ? local
+      : local.length === 11 && local.startsWith("1")
+        ? local.slice(1)
+        : null;
+  if (nanp) {
+    return `+1 (${nanp.slice(0, 3)}) ${nanp.slice(3, 6)}-${nanp.slice(6)}`;
+  }
+  if (
+    international &&
+    !local.startsWith("1") &&
+    local.length >= 8 &&
+    local.length <= 15
+  ) {
+    return `+${local}`;
+  }
+  return null;
+}
+
 const availabilityWindowSchema = z
   .object({
     day: z.enum(DayOfWeek),
@@ -32,7 +79,7 @@ export const volunteerInputSchema = z.object({
     .toLowerCase()
     .pipe(z.union([z.literal(""), z.email("Enter a valid email address.")]))
     .transform((email) => email || null),
-  phone: optionalText,
+  phone: phoneSchema,
   languages: z
     .array(z.enum(Language))
     .transform((languages) => [...new Set(languages)]),
