@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
+import ConfirmDialog from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 import {
   formatAvailabilityWindow,
   type VolunteerRecord,
 } from "@/lib/volunteers";
+import { deleteVolunteers } from "./actions";
 import VolunteersToolbar from "./toolbar";
 import SelectionBanner from "./selection-banner";
-import DeleteConfirmationModal from "./delete-confirmation-modal";
 import type { FilterField, SelectedFilters } from "./volunteer-filter-menu";
 
 type VolunteersTableProps = {
@@ -55,16 +56,37 @@ const COLUMNS: {
 const checkboxClassName =
   "h-3.5 w-3.5 rounded border border-sandstone-400 bg-white accent-navy-800 cursor-pointer";
 
-// Unnamed volunteers sort last, matching the server's order.
-function byName(a: VolunteerRecord, b: VolunteerRecord) {
-  if (a.name === b.name) return 0;
-  if (a.name === null) return 1;
-  if (b.name === null) return -1;
-  return a.name.localeCompare(b.name);
-}
-
 const includesIgnoringCase = (values: string[], value: string) =>
   values.some((current) => current.toLowerCase() === value.toLowerCase());
+
+function matchesFilters(
+  volunteer: VolunteerRecord,
+  searchQuery: string,
+  filters: SelectedFilters,
+) {
+  const volunteerName = (volunteer.name ?? "").toLowerCase();
+  const volunteerPositions = volunteer.positions.map(({ name }) => name);
+
+  const matchesSearch = volunteerName.includes(
+    searchQuery.toLowerCase().trim(),
+  );
+  const matchesName =
+    filters.name.length === 0 ||
+    filters.name.some((name) => volunteerName.includes(name.toLowerCase()));
+  // A volunteer matches when they have at least one selected value.
+  const matchesLanguages =
+    filters.languages.length === 0 ||
+    filters.languages.some((language) =>
+      includesIgnoringCase(volunteer.languages, language),
+    );
+  const matchesPositions =
+    filters.positions.length === 0 ||
+    filters.positions.some((position) =>
+      includesIgnoringCase(volunteerPositions, position),
+    );
+
+  return matchesSearch && matchesName && matchesLanguages && matchesPositions;
+}
 
 export default function VolunteersTable({
   initialVolunteers,
@@ -77,42 +99,33 @@ export default function VolunteersTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, startDeleting] = useTransition();
   const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({
     name: [],
     languages: [],
     positions: [],
   });
 
-  const filteredVolunteers = volunteers.filter((volunteer) => {
-    const volunteerName = (volunteer.name ?? "").toLowerCase();
-    const volunteerPositions = volunteer.positions.map(({ name }) => name);
-
-    const matchesSearch = volunteerName.includes(
-      searchQuery.toLowerCase().trim(),
-    );
-    const matchesName =
-      selectedFilters.name.length === 0 ||
-      selectedFilters.name.some((name) =>
-        volunteerName.includes(name.toLowerCase()),
-      );
-    // A volunteer matches when they have at least one selected value.
-    const matchesLanguages =
-      selectedFilters.languages.length === 0 ||
-      selectedFilters.languages.some((language) =>
-        includesIgnoringCase(volunteer.languages, language),
-      );
-    const matchesPositions =
-      selectedFilters.positions.length === 0 ||
-      selectedFilters.positions.some((position) =>
-        includesIgnoringCase(volunteerPositions, position),
-      );
-
-    return matchesSearch && matchesName && matchesLanguages && matchesPositions;
-  });
+  const filteredVolunteers = volunteers.filter((volunteer) =>
+    matchesFilters(volunteer, searchQuery, selectedFilters),
+  );
 
   const visibleIds = filteredVolunteers.map((volunteer) => volunteer.id);
   const allVisibleSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+  // The selection only ever holds visible rows, so the banner count and the
+  // delete never include volunteers the search or filters hide.
+  const applySearchAndFilters = (query: string, filters: SelectedFilters) => {
+    setSearchQuery(query);
+    setSelectedFilters(filters);
+    const stillVisible = new Set(
+      volunteers
+        .filter((volunteer) => matchesFilters(volunteer, query, filters))
+        .map((volunteer) => volunteer.id),
+    );
+    setSelectedIds((prev) => prev.filter((id) => stillVisible.has(id)));
+  };
 
   const handleSelectRow = (id: string) => {
     setSelectedIds((prev) =>
@@ -123,53 +136,57 @@ export default function VolunteersTable({
   };
 
   const handleToggleFilter = (field: FilterField, value: string) => {
-    setSelectedFilters((prev) => ({
-      ...prev,
-      [field]: prev[field].includes(value)
-        ? prev[field].filter((item) => item !== value)
-        : [...prev[field], value],
-    }));
+    const values = selectedFilters[field];
+    applySearchAndFilters(searchQuery, {
+      ...selectedFilters,
+      [field]: values.includes(value)
+        ? values.filter((item) => item !== value)
+        : [...values, value],
+    });
   };
 
-  // Selections hidden by the search or filters are kept.
+  const handleSearch = (query: string) =>
+    applySearchAndFilters(query, selectedFilters);
+
   const handleSelectAll = () => {
-    if (allVisibleSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
-    } else {
-      setSelectedIds((prev) => [...new Set([...prev, ...visibleIds])]);
-    }
+    setSelectedIds(allVisibleSelected ? [] : visibleIds);
   };
 
+  // Deletes on the server first; rows only leave the table once that succeeds.
   const handleConfirmDelete = () => {
+    const ids = selectedIds;
     const deleted = volunteers.filter((volunteer) =>
-      selectedIds.includes(volunteer.id),
+      ids.includes(volunteer.id),
     );
-    setVolunteers((prev) =>
-      prev.filter((volunteer) => !selectedIds.includes(volunteer.id)),
-    );
-    setSelectedIds([]);
-    setShowDeleteModal(false);
 
-    toast.info(
-      deleted.length === 1
-        ? `${deleted[0].name ?? "Unnamed volunteer"} removed`
-        : `${deleted.length} volunteers removed`,
-      {
-        action: {
-          label: "Undo",
-          onClick: () =>
-            setVolunteers((prev) => [...prev, ...deleted].sort(byName)),
-        },
-      },
-    );
+    startDeleting(async () => {
+      const result = await deleteVolunteers(ids);
+      if (result.status === "error") {
+        toast.error(result.message);
+        return;
+      }
+
+      setVolunteers((prev) =>
+        prev.filter((volunteer) => !ids.includes(volunteer.id)),
+      );
+      setSelectedIds([]);
+      setShowDeleteModal(false);
+      toast.success(
+        deleted.length === 1
+          ? `${deleted[0].name ?? "Unnamed volunteer"} was deleted`
+          : `${deleted.length} volunteers were deleted`,
+      );
+    });
   };
+
+  const isSingle = selectedIds.length === 1;
 
   return (
     <div className="relative flex-1 w-full">
       <VolunteersToolbar
         searchInput={searchInput}
         setSearchInput={setSearchInput}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={handleSearch}
         selectedFilters={selectedFilters}
         onToggleFilter={handleToggleFilter}
         positionNames={positionNames}
@@ -239,9 +256,16 @@ export default function VolunteersTable({
         selectedCount={selectedIds.length}
         onDelete={() => setShowDeleteModal(true)}
       />
-      <DeleteConfirmationModal
+      <ConfirmDialog
         isOpen={showDeleteModal}
-        selectedCount={selectedIds.length}
+        variant="danger"
+        title={isSingle ? "Delete this profile?" : "Delete these profiles?"}
+        message={`Are you sure you want to delete ${
+          isSingle ? "this profile" : `these ${selectedIds.length} profiles`
+        }? This action cannot be reversed.`}
+        confirmLabel={isSingle ? "Yes, delete profile" : "Yes, delete profiles"}
+        pendingLabel="Deleting…"
+        pending={isDeleting}
         onConfirm={handleConfirmDelete}
         onCancel={() => setShowDeleteModal(false)}
       />
