@@ -3,15 +3,13 @@
 import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FaTrashAlt } from "react-icons/fa";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
-import {
-  formatAvailabilityWindow,
-  type VolunteerRecord,
-} from "@/lib/volunteers";
+import type { VolunteerRecord } from "@/lib/schemas/volunteer";
+import { formatAvailabilityWindow } from "@/lib/volunteers";
 import { deleteVolunteers } from "./actions";
 import VolunteersToolbar from "./toolbar";
-import SelectionBanner from "./selection-banner";
 import type { FilterField, SelectedFilters } from "./volunteer-filter-menu";
 
 /** A shift count that opens the volunteer's accepted and refused shifts. */
@@ -30,6 +28,34 @@ function ShiftHistoryLink({
     >
       {count}
     </Link>
+  );
+}
+
+/** The bar along the bottom while rows are selected, with their Delete button. */
+function SelectionBanner({
+  selectedCount,
+  onDelete,
+}: {
+  selectedCount: number;
+  onDelete: () => void;
+}) {
+  if (selectedCount === 0) return null;
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 z-30 flex h-[64px] items-center justify-between bg-sandstone-500 px-8 py-4">
+      <div className="text-[14px] leading-none text-sandstone-100">
+        <span className="font-bold">{selectedCount}</span> selected
+      </div>
+
+      <button
+        type="button"
+        onClick={onDelete}
+        className="flex h-[32px] items-center justify-center gap-[6px] rounded-[4px] bg-danger px-[10px] text-[14px] leading-none text-white cursor-pointer"
+      >
+        <FaTrashAlt className="h-4 w-4" />
+        <span>Delete</span>
+      </button>
+    </div>
   );
 }
 

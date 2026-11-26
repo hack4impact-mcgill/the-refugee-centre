@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  volunteerIdSchema,
   volunteerInputSchema,
   type VolunteerField,
   type VolunteerInput,
@@ -155,7 +156,7 @@ export async function updateVolunteer(
       "Your session has expired. Sign in again to update this volunteer.",
     );
   }
-  if (!z.uuid().safeParse(volunteerId).success) {
+  if (!volunteerIdSchema.safeParse(volunteerId).success) {
     return errorState("This volunteer no longer exists.");
   }
 
@@ -190,7 +191,7 @@ export type DeleteVolunteersResult =
   | { status: "success"; deletedCount: number }
   | { status: "error"; message: string };
 
-const idsSchema = z.array(z.uuid()).min(1);
+const idsSchema = z.array(volunteerIdSchema).min(1);
 
 /**
  * Permanently deletes the volunteers. Their positions, availability and shift

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { DayOfWeek, Language } from "@/generated/prisma/enums";
+import type { AvailabilityWindow } from "@/lib/ranking/types";
 
 const MINUTES_PER_DAY = 24 * 60;
+
+export const volunteerIdSchema = z.uuid();
 
 const optionalText = z
   .string()
@@ -47,6 +50,24 @@ export const volunteerInputSchema = z.object({
 export type VolunteerInput = z.output<typeof volunteerInputSchema>;
 
 export type VolunteerField = keyof z.input<typeof volunteerInputSchema>;
+
+/** A volunteer as the table, profile and edit pages show it. */
+export type VolunteerRecord = {
+  id: string;
+  createdAt: Date;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  languages: Language[];
+  positions: { id: string; name: string }[];
+  /** Shift offers the volunteer accepted. */
+  approvedShifts: number;
+  /** Shift offers the volunteer rejected. */
+  refusedShifts: number;
+  /** Weekly windows; minutes are counted from midnight. */
+  availability: AvailabilityWindow[];
+  notes: string | null;
+};
 
 function hasOverlap(windows: z.output<typeof availabilityWindowSchema>[]) {
   const sorted = [...windows].sort(

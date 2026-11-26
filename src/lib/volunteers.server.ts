@@ -1,11 +1,13 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isSignedIn } from "@/lib/supabase/server";
-import type { VolunteerRecord } from "@/lib/volunteers";
+import {
+  volunteerIdSchema,
+  type VolunteerRecord,
+} from "@/lib/schemas/volunteer";
 
 /** The fields a `VolunteerRecord` is built from, besides the shift counts. */
 const volunteerSelect = {
@@ -101,7 +103,7 @@ export async function getVolunteerTableData(): Promise<{
  * Volunteer ids are UUIDs, and Postgres rejects anything else in a uuid
  * column, so other ids (e.g. a mistyped URL) are treated as not found.
  */
-const isVolunteerId = (id: string) => z.uuid().safeParse(id).success;
+const isVolunteerId = (id: string) => volunteerIdSchema.safeParse(id).success;
 
 /**
  * One volunteer, for their profile and edit pages. Returns null when there is

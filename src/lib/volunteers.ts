@@ -1,23 +1,4 @@
-import type { Language } from "@/generated/prisma/enums";
 import type { AvailabilityWindow } from "@/lib/ranking/types";
-
-/** A volunteer as shown in the volunteers table. */
-export type VolunteerRecord = {
-  id: string;
-  createdAt: Date;
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-  languages: Language[];
-  positions: { id: string; name: string }[];
-  /** Shift offers the volunteer accepted. */
-  approvedShifts: number;
-  /** Shift offers the volunteer rejected. */
-  refusedShifts: number;
-  /** Weekly windows; minutes are counted from midnight. */
-  availability: AvailabilityWindow[];
-  notes: string | null;
-};
 
 function formatMinute(minute: number) {
   const hours = Math.floor(minute / 60) % 24;

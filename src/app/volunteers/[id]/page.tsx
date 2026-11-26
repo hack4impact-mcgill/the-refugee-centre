@@ -5,11 +5,13 @@ import type { ReactNode } from "react";
 import { BsPencilSquare } from "react-icons/bs";
 import { formatAvailabilityWindow } from "@/lib/volunteers";
 import { getVolunteerProfile } from "@/lib/volunteers.server";
-import { headerActionClassName, nameBarClassName } from "../styles";
 
 export const metadata: Metadata = {
   title: "Volunteer profile | The Refugee Centre",
 };
+
+const editLinkClassName =
+  "flex h-9.5 shrink-0 cursor-pointer items-center gap-3 rounded-lg bg-navy-900 px-2.5 py-2 text-body1 text-white transition-colors hover:bg-navy-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-700 disabled:cursor-wait disabled:opacity-70";
 
 const shiftsLinkClassName =
   "underline decoration-sandstone-400 underline-offset-2 hover:decoration-navy-900";
@@ -40,13 +42,13 @@ export default async function VolunteerProfilePage({
         <h1 className="text-h4">Volunteers</h1>
       </header>
 
-      <div className={nameBarClassName}>
+      <div className="flex items-center justify-between gap-4 border-b border-[#b2b2b2] px-8 py-4">
         <h2 className="truncate text-h5">
           {volunteer.name ?? "Unnamed volunteer"}
         </h2>
         <Link
           href={`/volunteers/${volunteer.id}/edit`}
-          className={headerActionClassName}
+          className={editLinkClassName}
         >
           <BsPencilSquare aria-hidden className="size-5.5" />
           Edit profile
