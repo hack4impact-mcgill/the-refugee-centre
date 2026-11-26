@@ -18,7 +18,10 @@ import interactionPlugin from "@fullcalendar/react/interaction";
 import { BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPaperPlane } from "react-icons/fa";
 
-import type { DeleteConfirmationRequired } from "@/app/api/shifts/[id]/route";
+import type {
+  DeleteConfirmationRequired,
+  ShiftDeleted,
+} from "@/app/api/shifts/[id]/route";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 import {
@@ -75,22 +78,35 @@ async function saveShift(input: ShiftInput, id?: string) {
 }
 
 /**
- * Returns the number of volunteers affected when the server wants a second
- * confirmation (the shift has started and volunteers responded), else null.
+ * Deletes a shift. `affectedVolunteers` counts the volunteers who accepted or
+ * refused it; with `needsConfirmation`, nothing was deleted because the shift
+ * has started and needs `confirm`.
  */
-async function removeShift(id: string, { confirm = false } = {}) {
+async function removeShift(
+  id: string,
+  { confirm = false } = {},
+): Promise<{ needsConfirmation: boolean; affectedVolunteers: number }> {
   const response = await fetch(
     `/api/shifts/${id}${confirm ? "?confirm=true" : ""}`,
     { method: "DELETE" },
   );
   if (response.status === 409) {
     const body: DeleteConfirmationRequired = await response.json();
-    return body.affectedVolunteers;
+    return {
+      needsConfirmation: true,
+      affectedVolunteers: body.affectedVolunteers,
+    };
   }
-  if (!response.ok && response.status !== 404) {
-    throw new Error(await response.text());
+  // Already gone, so there's nothing to restore either.
+  if (response.status === 404) {
+    return { needsConfirmation: false, affectedVolunteers: 0 };
   }
-  return null;
+  if (!response.ok) throw new Error(await response.text());
+  const body: ShiftDeleted = await response.json();
+  return {
+    needsConfirmation: false,
+    affectedVolunteers: body.affectedVolunteers,
+  };
 }
 
 // View docs for FullCalendar callback functions: https://fullcalendar.io/docs/event-dragging-resizing
@@ -298,9 +314,12 @@ export default function Schedule() {
     setPending("delete");
     const deleted = shifts.find((shift) => shift.id === draft.id);
     try {
-      const affected = await removeShift(draft.id, { confirm });
-      if (affected !== null) {
-        setConfirmingDelete({ affectedVolunteers: affected });
+      const { needsConfirmation, affectedVolunteers } = await removeShift(
+        draft.id,
+        { confirm },
+      );
+      if (needsConfirmation) {
+        setConfirmingDelete({ affectedVolunteers });
         return;
       }
       setConfirmingDelete(null);
@@ -311,9 +330,9 @@ export default function Schedule() {
       toast.success("Shift deleted", {
         description: deleted && summarizeShift(deleted),
         // Undo saves it again as a new shift, with a new id. It can't bring
-        // back volunteers' responses, so a confirmed delete gets no Undo.
+        // back volunteers' responses, so a shift that had any gets no Undo.
         action:
-          deleted && !confirm
+          deleted && affectedVolunteers === 0
             ? {
                 label: "Undo",
                 onClick: () =>

@@ -23,11 +23,7 @@ export function formatTimeRange({
   return `${formatMinute(startMinute)}–${formatMinute(endMinute)}`;
 }
 
-/** Formats a window as e.g. "Monday (9 AM-12 PM)". */
-export function formatAvailabilityWindow({
-  day,
-  startMinute,
-  endMinute,
-}: AvailabilityWindow) {
-  return `${formatDayName(day)} (${formatMinute(startMinute)}-${formatMinute(endMinute)})`;
+/** Formats a window as e.g. "Monday (9 AM–12 PM)". */
+export function formatAvailabilityWindow(window: AvailabilityWindow) {
+  return `${formatDayName(window.day)} (${formatTimeRange(window)})`;
 }

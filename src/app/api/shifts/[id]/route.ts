@@ -54,11 +54,18 @@ export type DeleteConfirmationRequired = {
   affectedVolunteers: number;
 };
 
+/** Body of a successful DELETE. */
+export type ShiftDeleted = {
+  /** Volunteers who had accepted or refused the deleted shift. */
+  affectedVolunteers: number;
+};
+
 /**
- * Deletes a shift, with its assignments. A shift that has started and that
- * volunteers accepted or refused is only deleted with `?confirm=true`, since
- * that also removes it from their accepted and refused counts; without it,
- * responds 409 with a `DeleteConfirmationRequired` body.
+ * Deletes a shift, with its assignments, and responds with a `ShiftDeleted`
+ * body. A shift that has started and that volunteers accepted or refused is
+ * only deleted with `?confirm=true`, since that also removes it from their
+ * accepted and refused counts; without it, responds 409 with a
+ * `DeleteConfirmationRequired` body.
  */
 export async function DELETE(
   request: NextRequest,
@@ -71,37 +78,39 @@ export async function DELETE(
     return Response.json(NOT_FOUND, { status: 404 });
   }
 
-  if (request.nextUrl.searchParams.get("confirm") !== "true") {
-    const shift = await prisma.shift.findUnique({
-      where: { id },
-      select: {
-        startTime: true,
-        _count: {
-          select: {
-            assignments: {
-              where: { status: { in: ["ACCEPTED", "REJECTED"] } },
-            },
+  const shift = await prisma.shift.findUnique({
+    where: { id },
+    select: {
+      startTime: true,
+      _count: {
+        select: {
+          assignments: {
+            where: { status: { in: ["ACCEPTED", "REJECTED"] } },
           },
         },
       },
-    });
-    if (!shift) return Response.json(NOT_FOUND, { status: 404 });
+    },
+  });
+  if (!shift) return Response.json(NOT_FOUND, { status: 404 });
 
-    const affectedVolunteers = shift._count.assignments;
-    if (shift.startTime <= new Date() && affectedVolunteers > 0) {
-      return Response.json(
-        {
-          error: "This shift has started and volunteers responded to it.",
-          code: "confirmation_required",
-          affectedVolunteers,
-        } satisfies DeleteConfirmationRequired,
-        { status: 409 },
-      );
-    }
+  const affectedVolunteers = shift._count.assignments;
+  if (
+    request.nextUrl.searchParams.get("confirm") !== "true" &&
+    shift.startTime <= new Date() &&
+    affectedVolunteers > 0
+  ) {
+    return Response.json(
+      {
+        error: "This shift has started and volunteers responded to it.",
+        code: "confirmation_required",
+        affectedVolunteers,
+      } satisfies DeleteConfirmationRequired,
+      { status: 409 },
+    );
   }
 
   // deleteMany reports a count instead of throwing when nothing matched.
   const { count } = await prisma.shift.deleteMany({ where: { id } });
   if (count === 0) return Response.json(NOT_FOUND, { status: 404 });
-  return new Response(null, { status: 204 });
+  return Response.json({ affectedVolunteers } satisfies ShiftDeleted);
 }

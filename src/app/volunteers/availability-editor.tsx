@@ -2,6 +2,7 @@
 
 import { BsPlusCircle, BsX } from "react-icons/bs";
 import { DayOfWeek } from "@/generated/prisma/enums";
+import { formatDayName } from "@/lib/volunteers";
 
 const MINUTES_PER_DAY = 24 * 60;
 
@@ -110,7 +111,7 @@ export default function AvailabilityEditor({
 
       {DAYS.map((day) => {
         const windows = value[day];
-        const dayName = day.charAt(0) + day.slice(1).toLowerCase();
+        const dayName = formatDayName(day);
         const added = nextWindowTimes(windows);
         const addWindow = () => {
           if (added) setDay(day, [...windows, { key: nextKey++, ...added }]);
@@ -166,7 +167,7 @@ export default function AvailabilityEditor({
                         aria-label={`${dayName}${position} start time`}
                         className={timeInputClassName}
                       />
-                      <span aria-hidden>-</span>
+                      <span aria-hidden>–</span>
                       <input
                         type="time"
                         value={window.end}

@@ -40,7 +40,10 @@ function AvailabilitySchedule({ windows }: { windows: AvailabilityWindow[] }) {
           .filter((window) => window.day === day)
           .sort((a, b) => a.startMinute - b.startMinute);
         return (
-          <li key={day} className="flex min-h-10 items-center gap-4 px-4 py-1.5">
+          <li
+            key={day}
+            className="flex min-h-10 items-center gap-4 px-4 py-1.5"
+          >
             <span className="w-24 shrink-0 text-body2 font-bold text-navy-900">
               {formatDayName(day)}
             </span>
