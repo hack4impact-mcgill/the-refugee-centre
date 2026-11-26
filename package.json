@@ -13,6 +13,7 @@
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
+    "db:seed": "prisma db execute --file prisma/seed.sql",
     "db:push:supabase": "prisma db push --config prisma.supabase.config.ts"
   },
   "dependencies": {
