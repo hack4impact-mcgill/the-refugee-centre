@@ -9,8 +9,8 @@ import {
 } from "react";
 import { BsClock, BsCalendarEvent, BsTrash } from "react-icons/bs";
 import Field, { fieldClassName } from "@/components/field";
-import LanguagePicker from "@/components/language-picker";
-import { ShiftLocation } from "@/generated/prisma/enums";
+import MultiSelect from "@/components/multi-select";
+import { Language, ShiftLocation } from "@/generated/prisma/enums";
 import {
   formatDateLine,
   formatTimeLine,
@@ -19,6 +19,11 @@ import {
 } from "@/lib/shifts";
 
 const POPUP_GAP = 8;
+
+const LANGUAGE_OPTIONS = Object.values(Language).map((language) => ({
+  value: language,
+  label: language,
+}));
 
 /** Keeps a popup coordinate at least POPUP_GAP inside the viewport. */
 function clampToViewport(value: number, max: number) {
@@ -212,19 +217,32 @@ export default function ShiftPopup({
             />
           </div>
 
-          <LanguagePicker
-            id="shift-required-languages"
-            label="Required languages"
-            values={draft.requiredLanguages}
-            onChange={(requiredLanguages) => onChange({ requiredLanguages })}
-          />
+          <Field label="Required languages" htmlFor="shift-required-languages">
+            <MultiSelect
+              id="shift-required-languages"
+              label="Required languages"
+              placeholder="Enter languages"
+              options={LANGUAGE_OPTIONS}
+              values={draft.requiredLanguages}
+              onChange={(requiredLanguages) => onChange({ requiredLanguages })}
+            />
+          </Field>
 
-          <LanguagePicker
-            id="shift-preferred-languages"
+          <Field
             label="Preferred languages"
-            values={draft.preferredLanguages}
-            onChange={(preferredLanguages) => onChange({ preferredLanguages })}
-          />
+            htmlFor="shift-preferred-languages"
+          >
+            <MultiSelect
+              id="shift-preferred-languages"
+              label="Preferred languages"
+              placeholder="Enter languages"
+              options={LANGUAGE_OPTIONS}
+              values={draft.preferredLanguages}
+              onChange={(preferredLanguages) =>
+                onChange({ preferredLanguages })
+              }
+            />
+          </Field>
         </div>
 
         <div className="flex items-center gap-2.5 p-3">

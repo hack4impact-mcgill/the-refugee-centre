@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BsSearch, BsPlusCircleFill } from "react-icons/bs";
 import VolunteerFilterMenu from "./volunteer-filter-menu";
 
@@ -49,13 +50,13 @@ export default function VolunteersToolbar({
             Export
           </button>
 
-          <button
-            type="button"
+          <Link
+            href="/volunteers/new"
             className="flex items-center justify-center gap-3 h-[38px] px-[10px] py-2 bg-navy-900 text-white rounded-lg text-[16px] leading-[22px] tracking-[-0.006em] cursor-pointer"
           >
             <BsPlusCircleFill className="w-[22px] h-[22px] shrink-0" />
             <span>Add profile</span>
-          </button>
+          </Link>
         </div>
       </div>
 
