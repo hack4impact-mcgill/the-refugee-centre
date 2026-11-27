@@ -7,6 +7,8 @@ import { BsArrowDown, BsArrowDownUp, BsArrowUp } from "react-icons/bs";
 /** What a column sorts by. Null values always sort last. */
 export type SortValue = string | number | Date | null;
 
+type SortDirection = "asc" | "desc";
+
 export type DataTableColumn<T> = {
   label: string;
   /** A fixed Tailwind width, e.g. "w-[149px]"; the table layout is fixed. */
@@ -14,50 +16,62 @@ export type DataTableColumn<T> = {
   render: (row: T) => ReactNode;
   /** Given, the column's header sorts the rows by this value when clicked. */
   sortValue?: (row: T) => SortValue;
+  /** Given, the table starts sorted by this column in this direction. */
+  defaultSort?: SortDirection;
 };
 
 /** Sorts by the column with this label. */
-export type DataTableSort = {
-  label: string;
-  direction: "asc" | "desc";
-};
+type DataTableSort = { label: string; direction: SortDirection };
+
+const SORT_UI = {
+  asc: { Icon: BsArrowUp, ariaSort: "ascending" },
+  desc: { Icon: BsArrowDown, ariaSort: "descending" },
+} as const;
 
 const collator = new Intl.Collator("en-CA", {
   sensitivity: "base",
   numeric: true,
 });
 
-function compareSortValues(a: SortValue, b: SortValue) {
+const toNumber = (value: NonNullable<SortValue>) =>
+  value instanceof Date ? value.getTime() : Number(value);
+
+function compareSortValues(
+  a: NonNullable<SortValue>,
+  b: NonNullable<SortValue>,
+) {
   if (typeof a === "string" && typeof b === "string") {
     return collator.compare(a, b);
   }
-  const toNumber = (value: SortValue) =>
-    value instanceof Date ? value.getTime() : Number(value);
   return toNumber(a) - toNumber(b);
 }
 
-/** A stable sort, so rows that tie keep the order they were passed in. */
+/** `Array.prototype.sort` is stable, so rows that tie keep their order. */
 function sortRows<T>(
   rows: T[],
   columns: DataTableColumn<T>[],
   sort: DataTableSort | null,
 ) {
-  const sortValue = columns.find(
-    ({ label }) => label === sort?.label,
-  )?.sortValue;
+  const sortValue =
+    sort && columns.find(({ label }) => label === sort.label)?.sortValue;
   if (!sort || !sortValue) return rows;
 
   const sign = sort.direction === "asc" ? 1 : -1;
-  return rows
-    .map((row) => ({ row, value: sortValue(row) }))
-    .sort((a, b) => {
-      if (a.value === null || b.value === null) {
-        // Nulls last in both directions.
-        return Number(a.value === null) - Number(b.value === null);
-      }
-      return sign * compareSortValues(a.value, b.value);
-    })
-    .map(({ row }) => row);
+  return [...rows].sort((rowA, rowB) => {
+    const a = sortValue(rowA);
+    const b = sortValue(rowB);
+    // Nulls last in both directions.
+    if (a === null || b === null)
+      return Number(a === null) - Number(b === null);
+    return sign * compareSortValues(a, b);
+  });
+}
+
+function initialSort<T>(columns: DataTableColumn<T>[]): DataTableSort | null {
+  const column = columns.find(({ defaultSort }) => defaultSort);
+  return column?.defaultSort
+    ? { label: column.label, direction: column.defaultSort }
+    : null;
 }
 
 /** Turns on the checkbox column. Only the rows passed in can be selected. */
@@ -81,8 +95,6 @@ type DataTableProps<T> = {
    */
   getRowHref?: (row: T) => string;
   selection?: DataTableSelection<T>;
-  /** The sort before any header is clicked. Left out, rows keep their order. */
-  defaultSort?: DataTableSort;
 };
 
 const checkboxClassName =
@@ -94,13 +106,12 @@ export default function DataTable<T>({
   getRowId,
   getRowHref,
   selection,
-  defaultSort,
 }: DataTableProps<T>) {
   const router = useRouter();
-  const [sort, setSort] = useState<DataTableSort | null>(defaultSort ?? null);
+  const [sort, setSort] = useState(() => initialSort(columns));
 
   const sortedRows = sortRows(rows, columns, sort);
-  const rowIds = rows.map(getRowId);
+  const rowIds = selection ? rows.map(getRowId) : [];
 
   const toggleSort = (label: string) =>
     setSort((current) => ({
@@ -143,25 +154,14 @@ export default function DataTable<T>({
               </th>
             )}
             {columns.map(({ label, width, sortValue }) => {
-              const direction =
-                sort?.label === label ? sort.direction : undefined;
-              const SortIcon =
-                direction === "asc"
-                  ? BsArrowUp
-                  : direction === "desc"
-                    ? BsArrowDown
-                    : BsArrowDownUp;
+              const sortUi =
+                sort?.label === label ? SORT_UI[sort.direction] : undefined;
+              const SortIcon = sortUi?.Icon ?? BsArrowDownUp;
               return (
                 <th
                   key={label}
                   aria-sort={
-                    sortValue
-                      ? direction === "asc"
-                        ? "ascending"
-                        : direction === "desc"
-                          ? "descending"
-                          : "none"
-                      : undefined
+                    sortValue ? (sortUi?.ariaSort ?? "none") : undefined
                   }
                   className={`${width} p-2 text-left font-bold text-[#162022] border-r border-sandstone-300`}
                 >
@@ -175,7 +175,7 @@ export default function DataTable<T>({
                       <SortIcon
                         aria-hidden
                         className={`h-3.5 w-3.5 shrink-0 ${
-                          direction ? "text-navy-900" : "text-sandstone-500"
+                          sortUi ? "text-navy-900" : "text-sandstone-500"
                         }`}
                       />
                     </button>

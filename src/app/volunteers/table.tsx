@@ -6,6 +6,7 @@ import { BsPlusCircleFill } from "react-icons/bs";
 import ConfirmDialog from "@/components/confirm-dialog";
 import DataTable, { type DataTableColumn } from "@/components/data-table";
 import FilterMenu, {
+  toggleFilterValue,
   type FilterFieldConfig,
   type SelectedFilters,
 } from "@/components/filter-menu";
@@ -171,15 +172,11 @@ export default function VolunteersTable({
     setSelectedIds((prev) => prev.filter((id) => stillVisible.has(id)));
   };
 
-  const handleToggleFilter = (field: FilterField, value: string) => {
-    const values = selectedFilters[field];
-    applySearchAndFilters(searchQuery, {
-      ...selectedFilters,
-      [field]: values.includes(value)
-        ? values.filter((item) => item !== value)
-        : [...values, value],
-    });
-  };
+  const handleToggleFilter = (field: FilterField, value: string) =>
+    applySearchAndFilters(
+      searchQuery,
+      toggleFilterValue(selectedFilters, field, value),
+    );
 
   const handleSearch = (query: string) =>
     applySearchAndFilters(query, selectedFilters);

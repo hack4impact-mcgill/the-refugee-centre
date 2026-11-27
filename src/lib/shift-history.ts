@@ -1,5 +1,6 @@
 import type { AssignmentStatus, Attendance } from "@/generated/prisma/enums";
 import { RANKING_CONFIG } from "@/lib/ranking/config";
+import { allDaySpanDays } from "@/lib/shifts";
 
 /** One row of the History page: one volunteer offered one shift. */
 export type ShiftHistoryRow = {
@@ -10,10 +11,8 @@ export type ShiftHistoryRow = {
   /** The shift's position; null when the shift has none. */
   position: string | null;
   startTime: Date;
-  endTime: Date;
   allDay: boolean;
-  status: AssignmentStatus;
-  attendance: Attendance;
+  statusLabel: string;
   /** Null unless the volunteer attended. */
   hours: number | null;
 };
@@ -65,11 +64,8 @@ export function attendedHours(
   attendance: Attendance,
 ) {
   if (attendance !== "ATTENDED") return null;
-  const hours = (endTime.getTime() - startTime.getTime()) / HOUR_MS;
-  if (!allDay) return hours;
-  // All-day shifts run midnight to midnight; rounding absorbs DST's 23/25 h days.
-  const days = Math.round(hours / 24) || 1;
-  return days * ALL_DAY_SHIFT_HOURS;
+  if (allDay) return allDaySpanDays(startTime, endTime) * ALL_DAY_SHIFT_HOURS;
+  return (endTime.getTime() - startTime.getTime()) / HOUR_MS;
 }
 
 const hoursFormat = new Intl.NumberFormat("en-CA", {
@@ -82,44 +78,42 @@ export function formatHours(hours: number) {
 }
 
 // Shifts are rendered on the server and in the browser, so the centre's time
-// zone and the locale are always set explicitly.
+// zone and the locale are always set explicitly. en-US writes "3:00 PM".
 const { timeZone } = RANKING_CONFIG;
+const locale = "en-US";
 
-const shortDateFormat = new Intl.DateTimeFormat("en-CA", {
+const timeFormat = new Intl.DateTimeFormat(locale, {
+  timeZone,
+  hour: "numeric",
+  minute: "2-digit",
+});
+const shortDateFormat = new Intl.DateTimeFormat(locale, {
   timeZone,
   weekday: "short",
   month: "short",
   day: "numeric",
   year: "numeric",
 });
-const shortTimeFormat = new Intl.DateTimeFormat("en-CA", {
-  timeZone,
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-/** Formats a shift as e.g. "Tue, Feb 3, 2026 · 3:00 p.m. – 6:00 p.m.". */
-export function formatShiftWhen({ startTime, endTime, allDay }: ShiftTimes) {
-  const date = shortDateFormat.format(startTime);
-  if (allDay) return `${date} · All day`;
-  return `${date} · ${shortTimeFormat.format(startTime)} – ${shortTimeFormat.format(endTime)}`;
-}
-
-const longDateFormat = new Intl.DateTimeFormat("en-US", {
+const longDateFormat = new Intl.DateTimeFormat(locale, {
   timeZone,
   month: "long",
   day: "numeric",
   year: "numeric",
 });
-const longTimeFormat = new Intl.DateTimeFormat("en-US", {
-  timeZone,
-  hour: "numeric",
-  minute: "2-digit",
-});
+
+/** Formats a shift as e.g. "Tue, Feb 3, 2026 · 3:00 PM – 6:00 PM". */
+export function formatShiftWhen({ startTime, endTime, allDay }: ShiftTimes) {
+  const date = shortDateFormat.format(startTime);
+  if (allDay) return `${date} · All day`;
+  return `${date} · ${timeFormat.format(startTime)} – ${timeFormat.format(endTime)}`;
+}
 
 /** Formats a shift's start as e.g. "February 3, 2026 3:00 PM". */
-export function formatShiftStart({ startTime, allDay }: ShiftTimes) {
+export function formatShiftStart({
+  startTime,
+  allDay,
+}: Pick<ShiftTimes, "startTime" | "allDay">) {
   const date = longDateFormat.format(startTime);
   if (allDay) return `${date} · All day`;
-  return `${date} ${longTimeFormat.format(startTime)}`;
+  return `${date} ${timeFormat.format(startTime)}`;
 }

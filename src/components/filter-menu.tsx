@@ -21,6 +21,21 @@ export type FilterFieldConfig<F extends string> = {
 
 export type SelectedFilters<F extends string> = Record<F, string[]>;
 
+/** Adds `value` to `field`'s selected values, or removes it if it's there. */
+export function toggleFilterValue<F extends string>(
+  filters: SelectedFilters<F>,
+  field: F,
+  value: string,
+): SelectedFilters<F> {
+  const values = filters[field];
+  return {
+    ...filters,
+    [field]: values.includes(value)
+      ? values.filter((item) => item !== value)
+      : [...values, value],
+  };
+}
+
 type FilterMenuProps<F extends string> = {
   fields: FilterFieldConfig<F>[];
   selectedFilters: SelectedFilters<F>;

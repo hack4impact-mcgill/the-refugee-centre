@@ -3,7 +3,11 @@ import "server-only";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { attendedHours, type ShiftHistoryRow } from "@/lib/shift-history";
+import {
+  attendedHours,
+  historyStatusLabel,
+  type ShiftHistoryRow,
+} from "@/lib/shift-history";
 import { isSignedIn } from "@/lib/supabase/server";
 import {
   volunteerIdSchema,
@@ -126,15 +130,6 @@ export async function getVolunteerProfile(
   return volunteer && toRecord(volunteer, countOf);
 }
 
-/** The shift fields both shift histories show. */
-const shiftHistorySelect = {
-  id: true,
-  title: true,
-  startTime: true,
-  endTime: true,
-  allDay: true,
-} satisfies Prisma.ShiftSelect;
-
 export type ShiftHistoryEntry = {
   shiftId: string;
   title: string;
@@ -166,7 +161,15 @@ export async function getVolunteerShiftHistory(volunteerId: string): Promise<{
         select: {
           status: true,
           respondedAt: true,
-          shift: { select: shiftHistorySelect },
+          shift: {
+            select: {
+              id: true,
+              title: true,
+              startTime: true,
+              endTime: true,
+              allDay: true,
+            },
+          },
         },
       },
     },
@@ -221,7 +224,9 @@ export async function getShiftHistoryTableData(): Promise<{
         volunteer: { select: { id: true, name: true } },
         shift: {
           select: {
-            ...shiftHistorySelect,
+            startTime: true,
+            endTime: true,
+            allDay: true,
             position: { select: { name: true } },
           },
         },
@@ -237,10 +242,8 @@ export async function getShiftHistoryTableData(): Promise<{
       volunteerName: volunteer.name,
       position: shift.position?.name ?? null,
       startTime: shift.startTime,
-      endTime: shift.endTime,
       allDay: shift.allDay,
-      status,
-      attendance,
+      statusLabel: historyStatusLabel(status, attendance),
       hours: attendedHours(shift, attendance),
     })),
     positionNames: positions.map(({ name }) => name),

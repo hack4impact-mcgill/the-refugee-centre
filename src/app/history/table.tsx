@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import DataTable, { type DataTableColumn } from "@/components/data-table";
 import FilterMenu, {
+  toggleFilterValue,
   type FilterFieldConfig,
   type SelectedFilters,
 } from "@/components/filter-menu";
@@ -12,12 +13,8 @@ import {
   formatHours,
   formatShiftStart,
   HISTORY_STATUS_LABELS,
-  historyStatusLabel,
   type ShiftHistoryRow,
 } from "@/lib/shift-history";
-
-const statusOf = (r: ShiftHistoryRow) =>
-  historyStatusLabel(r.status, r.attendance);
 
 const COLUMNS: DataTableColumn<ShiftHistoryRow>[] = [
   {
@@ -41,12 +38,13 @@ const COLUMNS: DataTableColumn<ShiftHistoryRow>[] = [
     width: "w-[214px]",
     render: formatShiftStart,
     sortValue: (r) => r.startTime,
+    defaultSort: "desc",
   },
   {
     label: "Status",
     width: "w-[214px]",
-    render: statusOf,
-    sortValue: statusOf,
+    render: (r) => r.statusLabel,
+    sortValue: (r) => r.statusLabel,
   },
   {
     label: "Hours",
@@ -65,26 +63,26 @@ const filterFields = (
   { field: "status", label: "Status", options: HISTORY_STATUS_LABELS },
 ];
 
+/** `nameQuery` is already lowercased and trimmed. */
 function matchesFilters(
   row: ShiftHistoryRow,
-  searchQuery: string,
+  nameQuery: string,
   filters: SelectedFilters<FilterField>,
 ) {
-  const matchesSearch = row.volunteerName
-    .toLowerCase()
-    .includes(searchQuery.toLowerCase().trim());
+  const matchesSearch =
+    !nameQuery || row.volunteerName.toLowerCase().includes(nameQuery);
   // A row matches a field when it has any of the selected values.
   const matchesPosition =
     filters.position.length === 0 ||
     (row.position !== null && filters.position.includes(row.position));
   const matchesStatus =
-    filters.status.length === 0 || filters.status.includes(statusOf(row));
+    filters.status.length === 0 || filters.status.includes(row.statusLabel);
 
   return matchesSearch && matchesPosition && matchesStatus;
 }
 
 type ShiftHistoryTableProps = {
-  /** Newest shift first. */
+  /** Rows on the same Shift Date keep this order, so pass them by name. */
   rows: ShiftHistoryRow[];
   positionNames: string[];
 };
@@ -98,19 +96,13 @@ export default function ShiftHistoryTable({
     SelectedFilters<FilterField>
   >({ position: [], status: [] });
 
+  const nameQuery = searchQuery.toLowerCase().trim();
   const visibleRows = rows.filter((row) =>
-    matchesFilters(row, searchQuery, selectedFilters),
+    matchesFilters(row, nameQuery, selectedFilters),
   );
 
-  const handleToggleFilter = (field: FilterField, value: string) => {
-    const values = selectedFilters[field];
-    setSelectedFilters({
-      ...selectedFilters,
-      [field]: values.includes(value)
-        ? values.filter((item) => item !== value)
-        : [...values, value],
-    });
-  };
+  const handleToggleFilter = (field: FilterField, value: string) =>
+    setSelectedFilters(toggleFilterValue(selectedFilters, field, value));
 
   return (
     <div className="flex-1 w-full">
@@ -125,12 +117,7 @@ export default function ShiftHistoryTable({
         }
       />
 
-      <DataTable
-        rows={visibleRows}
-        columns={COLUMNS}
-        getRowId={(r) => r.id}
-        defaultSort={{ label: "Shift Date", direction: "desc" }}
-      />
+      <DataTable rows={visibleRows} columns={COLUMNS} getRowId={(r) => r.id} />
 
       {visibleRows.length === 0 && (
         <p className="px-8 py-6 text-body2 text-sandstone-600">

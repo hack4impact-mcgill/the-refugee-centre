@@ -140,12 +140,19 @@ export function formatDateLine(draft: ShiftDraft) {
   return `${shortDayFormat.format(draft.start)} – ${shortDayFormat.format(last)}`;
 }
 
+/**
+ * How many days an all-day range covers. Rounding absorbs daylight saving's
+ * 23 and 25 hour days.
+ */
+export function allDaySpanDays(start: Date, end: Date) {
+  return (
+    Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) || 1
+  );
+}
+
 export function formatTimeLine(draft: ShiftDraft) {
   if (draft.allDay) {
-    const days =
-      Math.round(
-        (draft.end.getTime() - draft.start.getTime()) / (24 * 60 * 60 * 1000),
-      ) || 1;
+    const days = allDaySpanDays(draft.start, draft.end);
     return `All day · ${days} ${days === 1 ? "day" : "days"}`;
   }
 
