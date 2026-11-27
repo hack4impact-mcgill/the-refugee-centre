@@ -54,13 +54,22 @@ export function historyStatusLabel(
     : STATUS_LABELS[status];
 }
 
+/** What an all-day shift counts as, per day, until real hours are recorded. */
+const ALL_DAY_SHIFT_HOURS = 8;
+
+const HOUR_MS = 60 * 60 * 1000;
+
 /** A shift's length in hours, counted only when the volunteer attended. */
 export function attendedHours(
-  { startTime, endTime }: ShiftTimes,
+  { startTime, endTime, allDay }: ShiftTimes,
   attendance: Attendance,
 ) {
   if (attendance !== "ATTENDED") return null;
-  return (endTime.getTime() - startTime.getTime()) / (60 * 60 * 1000);
+  const hours = (endTime.getTime() - startTime.getTime()) / HOUR_MS;
+  if (!allDay) return hours;
+  // All-day shifts run midnight to midnight; rounding absorbs DST's 23/25 h days.
+  const days = Math.round(hours / 24) || 1;
+  return days * ALL_DAY_SHIFT_HOURS;
 }
 
 const hoursFormat = new Intl.NumberFormat("en-CA", {

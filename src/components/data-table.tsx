@@ -1,14 +1,64 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { BsArrowDown, BsArrowDownUp, BsArrowUp } from "react-icons/bs";
+
+/** What a column sorts by. Null values always sort last. */
+export type SortValue = string | number | Date | null;
 
 export type DataTableColumn<T> = {
   label: string;
   /** A fixed Tailwind width, e.g. "w-[149px]"; the table layout is fixed. */
   width: string;
   render: (row: T) => ReactNode;
+  /** Given, the column's header sorts the rows by this value when clicked. */
+  sortValue?: (row: T) => SortValue;
 };
+
+/** Sorts by the column with this label. */
+export type DataTableSort = {
+  label: string;
+  direction: "asc" | "desc";
+};
+
+const collator = new Intl.Collator("en-CA", {
+  sensitivity: "base",
+  numeric: true,
+});
+
+function compareSortValues(a: SortValue, b: SortValue) {
+  if (typeof a === "string" && typeof b === "string") {
+    return collator.compare(a, b);
+  }
+  const toNumber = (value: SortValue) =>
+    value instanceof Date ? value.getTime() : Number(value);
+  return toNumber(a) - toNumber(b);
+}
+
+/** A stable sort, so rows that tie keep the order they were passed in. */
+function sortRows<T>(
+  rows: T[],
+  columns: DataTableColumn<T>[],
+  sort: DataTableSort | null,
+) {
+  const sortValue = columns.find(
+    ({ label }) => label === sort?.label,
+  )?.sortValue;
+  if (!sort || !sortValue) return rows;
+
+  const sign = sort.direction === "asc" ? 1 : -1;
+  return rows
+    .map((row) => ({ row, value: sortValue(row) }))
+    .sort((a, b) => {
+      if (a.value === null || b.value === null) {
+        // Nulls last in both directions.
+        return Number(a.value === null) - Number(b.value === null);
+      }
+      return sign * compareSortValues(a.value, b.value);
+    })
+    .map(({ row }) => row);
+}
 
 /** Turns on the checkbox column. Only the rows passed in can be selected. */
 export type DataTableSelection<T> = {
@@ -31,6 +81,8 @@ type DataTableProps<T> = {
    */
   getRowHref?: (row: T) => string;
   selection?: DataTableSelection<T>;
+  /** The sort before any header is clicked. Left out, rows keep their order. */
+  defaultSort?: DataTableSort;
 };
 
 const checkboxClassName =
@@ -42,10 +94,22 @@ export default function DataTable<T>({
   getRowId,
   getRowHref,
   selection,
+  defaultSort,
 }: DataTableProps<T>) {
   const router = useRouter();
+  const [sort, setSort] = useState<DataTableSort | null>(defaultSort ?? null);
 
+  const sortedRows = sortRows(rows, columns, sort);
   const rowIds = rows.map(getRowId);
+
+  const toggleSort = (label: string) =>
+    setSort((current) => ({
+      label,
+      direction:
+        current?.label === label && current.direction === "asc"
+          ? "desc"
+          : "asc",
+    }));
   const allSelected =
     selection !== undefined &&
     rowIds.length > 0 &&
@@ -78,19 +142,54 @@ export default function DataTable<T>({
                 />
               </th>
             )}
-            {columns.map(({ label, width }) => (
-              <th
-                key={label}
-                className={`${width} p-2 text-left font-bold text-[#162022] border-r border-sandstone-300`}
-              >
-                {label}
-              </th>
-            ))}
+            {columns.map(({ label, width, sortValue }) => {
+              const direction =
+                sort?.label === label ? sort.direction : undefined;
+              const SortIcon =
+                direction === "asc"
+                  ? BsArrowUp
+                  : direction === "desc"
+                    ? BsArrowDown
+                    : BsArrowDownUp;
+              return (
+                <th
+                  key={label}
+                  aria-sort={
+                    sortValue
+                      ? direction === "asc"
+                        ? "ascending"
+                        : direction === "desc"
+                          ? "descending"
+                          : "none"
+                      : undefined
+                  }
+                  className={`${width} p-2 text-left font-bold text-[#162022] border-r border-sandstone-300`}
+                >
+                  {sortValue ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(label)}
+                      className="flex w-full items-center justify-between gap-1 text-left font-bold cursor-pointer"
+                    >
+                      <span className="truncate">{label}</span>
+                      <SortIcon
+                        aria-hidden
+                        className={`h-3.5 w-3.5 shrink-0 ${
+                          direction ? "text-navy-900" : "text-sandstone-500"
+                        }`}
+                      />
+                    </button>
+                  ) : (
+                    label
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
 
         <tbody>
-          {rows.map((row) => {
+          {sortedRows.map((row) => {
             const id = getRowId(row);
             const isChecked = selection?.selectedIds.includes(id) ?? false;
             const href = getRowHref?.(row);
