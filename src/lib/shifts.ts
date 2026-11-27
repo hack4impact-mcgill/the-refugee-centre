@@ -1,10 +1,18 @@
 import type { EventInput } from "@fullcalendar/react";
 import type { Language, ShiftLocation } from "@/generated/prisma/enums";
-import type { ShiftInput, ShiftRecord } from "@/lib/schemas/shift";
+import {
+  addressFor,
+  type ShiftInput,
+  type ShiftRecord,
+} from "@/lib/schemas/shift";
 
 /** Saved in extendedProps */
 export type ShiftDetails = {
   location: ShiftLocation;
+  /**
+   * The Offsite address the user typed. Kept while switching to TRC or Remote
+   * (which have no editable address) so switching back doesn't lose it.
+   */
   address: string;
   requiredLanguages: Language[];
   preferredLanguages: Language[];
@@ -30,6 +38,7 @@ export type ShiftDraft = ShiftDetails & {
 export function inputOf(draft: ShiftDraft): ShiftInput {
   return {
     ...detailsOf(draft),
+    address: addressFor(draft.location, draft.address) ?? "",
     title: draft.title.trim() || "Untitled shift",
     startTime: draft.start.toISOString(),
     endTime: draft.end.toISOString(),
@@ -49,7 +58,8 @@ export type ShiftEvent = EventInput & {
 export function eventOf(shift: ShiftRecord): ShiftEvent {
   const details: ShiftDetails = {
     location: shift.location,
-    address: shift.address ?? "",
+    // TRC's address is fixed, so only an Offsite one is worth editing.
+    address: shift.location === "Offsite" ? (shift.address ?? "") : "",
     requiredLanguages: shift.requiredLanguages,
     preferredLanguages: shift.preferredLanguages,
   };

@@ -7,10 +7,12 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { BsClock, BsCalendarEvent, BsTrash } from "react-icons/bs";
+import { BsClock, BsCalendarEvent, BsGeoAlt, BsTrash } from "react-icons/bs";
+import { SiGooglemeet } from "react-icons/si";
 import Field, { fieldClassName } from "@/components/field";
 import MultiSelect from "@/components/multi-select";
 import { Language, ShiftLocation } from "@/generated/prisma/enums";
+import { TRC_ADDRESS } from "@/lib/schemas/shift";
 import {
   formatDateLine,
   formatTimeLine,
@@ -20,10 +22,9 @@ import {
 
 const POPUP_GAP = 8;
 
-const LANGUAGE_OPTIONS = Object.values(Language).map((language) => ({
-  value: language,
-  label: language,
-}));
+const LANGUAGE_OPTIONS = Object.values(Language)
+  .sort((a, b) => a.localeCompare(b))
+  .map((language) => ({ value: language, label: language }));
 
 /** Keeps a popup coordinate at least POPUP_GAP inside the viewport. */
 function clampToViewport(value: number, max: number) {
@@ -211,24 +212,62 @@ export default function ShiftPopup({
             </div>
           </Field>
 
-          <div className={fieldClassName}>
-            <label className="sr-only" htmlFor="shift-address">
-              Address
-            </label>
-            <input
-              id="shift-address"
-              value={draft.address}
-              onChange={(event) => onChange({ address: event.target.value })}
-              placeholder="Enter address"
-              className="min-w-0 flex-1 text-body1 outline-none placeholder:text-sandstone-500"
-            />
-          </div>
+          {draft.location === ShiftLocation.Remote ? (
+            // TODO: create a Google Meet link for the shift. Visual only for now.
+            <button
+              type="button"
+              className={`${fieldClassName} cursor-pointer justify-start! text-left text-body1 text-navy-900 transition-colors hover:bg-sandstone-200`}
+            >
+              <SiGooglemeet
+                aria-hidden
+                className="size-4 shrink-0 text-sandstone-600"
+              />
+              Add Google Meet video conferencing
+            </button>
+          ) : (
+            <div
+              className={`${fieldClassName} ${
+                draft.location === ShiftLocation.TRC ? "bg-sandstone-200!" : ""
+              }`}
+            >
+              <BsGeoAlt
+                aria-hidden
+                className="size-4 shrink-0 text-sandstone-600"
+              />
+              {draft.location === ShiftLocation.TRC ? (
+                // Fixed, so plain text rather than a read-only input. A size
+                // down from the inputs keeps it on one line in the popup.
+                <p
+                  aria-label="Address"
+                  title="TRC shifts are always at this address"
+                  className="min-w-0 flex-1 truncate text-body2 text-sandstone-700"
+                >
+                  {TRC_ADDRESS}
+                </p>
+              ) : (
+                <>
+                  <label className="sr-only" htmlFor="shift-address">
+                    Address
+                  </label>
+                  <input
+                    id="shift-address"
+                    value={draft.address}
+                    onChange={(event) =>
+                      onChange({ address: event.target.value })
+                    }
+                    placeholder="Enter address"
+                    className="min-w-0 flex-1 text-body1 outline-none placeholder:text-sandstone-500"
+                  />
+                </>
+              )}
+            </div>
+          )}
 
           <Field label="Required languages" htmlFor="shift-required-languages">
             <MultiSelect
               id="shift-required-languages"
               label="Required languages"
-              placeholder="Enter languages"
+              placeholder="Add a language"
               options={LANGUAGE_OPTIONS}
               values={draft.requiredLanguages}
               onChange={(requiredLanguages) => onChange({ requiredLanguages })}
@@ -242,7 +281,7 @@ export default function ShiftPopup({
             <MultiSelect
               id="shift-preferred-languages"
               label="Preferred languages"
-              placeholder="Enter languages"
+              placeholder="Add a language"
               options={LANGUAGE_OPTIONS}
               values={draft.preferredLanguages}
               onChange={(preferredLanguages) =>
