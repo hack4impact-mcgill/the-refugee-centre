@@ -7,6 +7,19 @@ const isoDate = z.iso
   .datetime({ offset: true })
   .transform((value) => new Date(value));
 
+/** Shifts at TRC always take place here, so the address isn't editable. */
+export const TRC_ADDRESS = "2107 Rue Sainte-Catherine Ouest, Montréal, QC";
+
+/**
+ * The address stored for a shift: fixed at TRC, typed in for Offsite, and
+ * none for Remote (it has a video call instead).
+ */
+export function addressFor(location: ShiftLocation, address: string | null) {
+  if (location === ShiftLocation.TRC) return TRC_ADDRESS;
+  if (location === ShiftLocation.Remote) return null;
+  return address;
+}
+
 export const shiftIdSchema = z.uuid();
 
 /** The `?start=…&end=…` range GET /api/shifts filters by */
@@ -35,7 +48,11 @@ export const shiftInputSchema = z
   .refine((shift) => shift.endTime >= shift.startTime, {
     message: "endTime must not be before startTime",
     path: ["endTime"],
-  });
+  })
+  .transform((shift) => ({
+    ...shift,
+    address: addressFor(shift.location, shift.address),
+  }));
 
 /** The request body, before parsing (dates as ISO strings). */
 export type ShiftInput = z.input<typeof shiftInputSchema>;

@@ -204,31 +204,33 @@ export default function VolunteerForm({
         />
 
         <FormField id="languages" label="Spoken Languages">
-          <MultiSelect
-            id="languages"
-            label="Spoken Languages"
-            placeholder="Add a language"
-            options={LANGUAGE_OPTIONS}
-            values={languages}
-            onChange={setLanguages}
-            variant="form"
-          />
+          <div className="w-full max-w-90">
+            <MultiSelect
+              id="languages"
+              label="Spoken Languages"
+              placeholder="Add a language"
+              options={LANGUAGE_OPTIONS}
+              values={languages}
+              onChange={setLanguages}
+            />
+          </div>
         </FormField>
         <FormField id="positions" label="Positions">
-          <MultiSelect
-            id="positions"
-            label="Positions"
-            placeholder={
-              positions.length ? "Add a position" : "No positions yet"
-            }
-            options={positions.map(({ id, name }) => ({
-              value: id,
-              label: name,
-            }))}
-            values={positionIds}
-            onChange={setPositionIds}
-            variant="form"
-          />
+          <div className="w-full max-w-90">
+            <MultiSelect
+              id="positions"
+              label="Positions"
+              placeholder={
+                positions.length ? "Add a position" : "No positions yet"
+              }
+              options={positions.map(({ id, name }) => ({
+                value: id,
+                label: name,
+              }))}
+              values={positionIds}
+              onChange={setPositionIds}
+            />
+          </div>
         </FormField>
 
         <AvailabilityEditor
