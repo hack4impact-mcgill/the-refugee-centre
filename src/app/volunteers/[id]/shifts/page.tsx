@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BsArrowLeft } from "react-icons/bs";
-import { RANKING_CONFIG } from "@/lib/ranking/config";
+import { formatShiftWhen } from "@/lib/shift-history";
 import {
   getVolunteerShiftHistory,
   type ShiftHistoryEntry,
@@ -11,26 +11,6 @@ import {
 export const metadata: Metadata = {
   title: "Shift history | The Refugee Centre",
 };
-
-// Rendered on the server, so the centre's time zone is set explicitly.
-const dateFormat = new Intl.DateTimeFormat("en-CA", {
-  timeZone: RANKING_CONFIG.timeZone,
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-const timeFormat = new Intl.DateTimeFormat("en-CA", {
-  timeZone: RANKING_CONFIG.timeZone,
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-function formatWhen({ startTime, endTime, allDay }: ShiftHistoryEntry) {
-  const date = dateFormat.format(startTime);
-  if (allDay) return `${date} · All day`;
-  return `${date} · ${timeFormat.format(startTime)} – ${timeFormat.format(endTime)}`;
-}
 
 function ShiftList({
   title,
@@ -56,7 +36,7 @@ function ShiftList({
                 {shift.title}
               </span>
               <span className="text-body2 text-sandstone-600">
-                {formatWhen(shift)}
+                {formatShiftWhen(shift)}
               </span>
             </li>
           ))}

@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { attendedHours, type ShiftHistoryRow } from "@/lib/shift-history";
 import { isSignedIn } from "@/lib/supabase/server";
 import {
   volunteerIdSchema,
@@ -125,6 +126,15 @@ export async function getVolunteerProfile(
   return volunteer && toRecord(volunteer, countOf);
 }
 
+/** The shift fields both shift histories show. */
+const shiftHistorySelect = {
+  id: true,
+  title: true,
+  startTime: true,
+  endTime: true,
+  allDay: true,
+} satisfies Prisma.ShiftSelect;
+
 export type ShiftHistoryEntry = {
   shiftId: string;
   title: string;
@@ -156,15 +166,7 @@ export async function getVolunteerShiftHistory(volunteerId: string): Promise<{
         select: {
           status: true,
           respondedAt: true,
-          shift: {
-            select: {
-              id: true,
-              title: true,
-              startTime: true,
-              endTime: true,
-              allDay: true,
-            },
-          },
+          shift: { select: shiftHistorySelect },
         },
       },
     },
@@ -191,5 +193,56 @@ export async function getVolunteerShiftHistory(volunteerId: string): Promise<{
       .filter((e) => e.status === "ACCEPTED")
       .map((e) => e.entry),
     refused: entries.filter((e) => e.status === "REJECTED").map((e) => e.entry),
+  };
+}
+
+/**
+ * Loads everything the History page needs: every shift offer whose shift has
+ * started, newest shift first, and the position names to filter by. Redirects
+ * signed-out users to /login.
+ */
+export async function getShiftHistoryTableData(): Promise<{
+  rows: ShiftHistoryRow[];
+  positionNames: string[];
+}> {
+  if (!(await isSignedIn())) redirect("/login");
+
+  const [assignments, positions] = await Promise.all([
+    prisma.shiftAssignment.findMany({
+      where: { shift: { startTime: { lte: new Date() } } },
+      orderBy: [
+        { shift: { startTime: "desc" } },
+        { volunteer: { name: "asc" } },
+      ],
+      select: {
+        id: true,
+        status: true,
+        attendance: true,
+        volunteer: { select: { id: true, name: true } },
+        shift: {
+          select: {
+            ...shiftHistorySelect,
+            position: { select: { name: true } },
+          },
+        },
+      },
+    }),
+    getPositionOptions(),
+  ]);
+
+  return {
+    rows: assignments.map(({ id, status, attendance, volunteer, shift }) => ({
+      id,
+      volunteerId: volunteer.id,
+      volunteerName: volunteer.name,
+      position: shift.position?.name ?? null,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      allDay: shift.allDay,
+      status,
+      attendance,
+      hours: attendedHours(shift, attendance),
+    })),
+    positionNames: positions.map(({ name }) => name),
   };
 }
