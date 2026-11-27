@@ -1,14 +1,40 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import ColumnHeaderMenu, {
+  type ColumnFilter,
+  type SortDirection,
+} from "./column-header-menu";
 
 export type DataTableColumn<T> = {
   label: string;
   /** A fixed Tailwind width, e.g. "w-[149px]"; the table layout is fixed. */
   width: string;
   render: (row: T) => ReactNode;
+  /** The value the column sorts by. Left out, the column can't be sorted. */
+  sortValue?: (row: T) => string | number | null;
+  /** Lets the user filter from the column's header. */
+  filter?: ColumnFilter;
 };
+
+type SortState = { label: string; direction: SortDirection } | null;
+
+/** Empty values always go last, whichever way the column is sorted. */
+function compareValues(
+  a: string | number | null,
+  b: string | number | null,
+  direction: SortDirection,
+) {
+  const aEmpty = a === null || a === "";
+  const bEmpty = b === null || b === "";
+  if (aEmpty || bEmpty) return aEmpty === bEmpty ? 0 : aEmpty ? 1 : -1;
+  const result =
+    typeof a === "number" && typeof b === "number"
+      ? a - b
+      : String(a).localeCompare(String(b), undefined, { sensitivity: "base" });
+  return direction === "asc" ? result : -result;
+}
 
 /** Turns on the checkbox column. Only the rows passed in can be selected. */
 export type DataTableSelection<T> = {
@@ -44,6 +70,21 @@ export default function DataTable<T>({
   selection,
 }: DataTableProps<T>) {
   const router = useRouter();
+  const [sort, setSort] = useState<SortState>(null);
+
+  const sortColumn = sort
+    ? columns.find(({ label }) => label === sort.label)
+    : undefined;
+  const sortedRows =
+    sort && sortColumn?.sortValue
+      ? [...rows].sort((a, b) =>
+          compareValues(
+            sortColumn.sortValue!(a),
+            sortColumn.sortValue!(b),
+            sort.direction,
+          ),
+        )
+      : rows;
 
   const rowIds = rows.map(getRowId);
   const allSelected =
@@ -78,19 +119,42 @@ export default function DataTable<T>({
                 />
               </th>
             )}
-            {columns.map(({ label, width }) => (
+            {columns.map(({ label, width, sortValue, filter }) => (
               <th
                 key={label}
+                aria-sort={
+                  sort?.label === label
+                    ? sort.direction === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : undefined
+                }
                 className={`${width} p-2 text-left font-bold text-[#162022] border-r border-sandstone-300`}
               >
-                {label}
+                <ColumnHeaderMenu
+                  label={label}
+                  sortDirection={
+                    sortValue
+                      ? sort?.label === label
+                        ? sort.direction
+                        : null
+                      : undefined
+                  }
+                  onSort={
+                    sortValue
+                      ? (direction) =>
+                          setSort(direction ? { label, direction } : null)
+                      : undefined
+                  }
+                  filter={filter}
+                />
               </th>
             ))}
           </tr>
         </thead>
 
         <tbody>
-          {rows.map((row) => {
+          {sortedRows.map((row) => {
             const id = getRowId(row);
             const isChecked = selection?.selectedIds.includes(id) ?? false;
             const href = getRowHref?.(row);
